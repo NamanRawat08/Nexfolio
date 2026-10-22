@@ -85,3 +85,4 @@ Once running:
 
 Phase 1 (Project Foundation) is currently implemented. The repository contains the modular Express backend structure, health check endpoint (`/api/health`), centralized error handling, environment validation, and the Vite React frontend with proxy configuration and health status monitoring. Authentication, database connectivity, real-time market data, and trading simulation features have not been implemented yet.
 # Nexfolio
+# Nexfolio
