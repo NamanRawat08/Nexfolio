@@ -44,7 +44,7 @@ The server requires specific environment variables defined in `server/.env`. Use
 | Variable | Description | Required | Default |
 | :--- | :--- | :--- | :--- |
 | `NODE_ENV` | Application environment (`development`, `production`, `test`) | No | `development` |
-| `PORT` | Port number on which the Express server listens | No | `5000` |
+| `PORT` | Port number on which the Express server listens | No | `5001` |
 | `CLIENT_ORIGIN` | Allowed client origin for CORS restrictions | No | `http://localhost:5173` |
 
 ## Setup Steps
@@ -78,9 +78,10 @@ Alternatively, you can run services individually:
 
 Once running:
 - Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:5000`
-- Backend Health Check: `http://localhost:5000/api/health`
+- Backend API: `http://localhost:5001`
+- Backend Health Check: `http://localhost:5001/api/health`
 
 ## Status
 
 Phase 1 (Project Foundation) is currently implemented. The repository contains the modular Express backend structure, health check endpoint (`/api/health`), centralized error handling, environment validation, and the Vite React frontend with proxy configuration and health status monitoring. Authentication, database connectivity, real-time market data, and trading simulation features have not been implemented yet.
+# Nexfolio
