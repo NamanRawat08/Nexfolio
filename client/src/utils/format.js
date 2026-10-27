@@ -26,6 +26,38 @@ const percentFormatter = new Intl.NumberFormat(LOCALE, {
   signDisplay: 'exceptZero',
 });
 
+// Formatters for date-only strings (YYYY-MM-DD) pinned to UTC
+const utcFullDateFormatter = new Intl.DateTimeFormat(LOCALE, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const utcShortDateWithDay = new Intl.DateTimeFormat(LOCALE, {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
+
+const utcShortDateMonthOnly = new Intl.DateTimeFormat(LOCALE, {
+  month: 'short',
+  timeZone: 'UTC',
+});
+
+// Local formatters for full ISO timestamp strings (e.g. order timestamps)
+const localFullDateFormatter = new Intl.DateTimeFormat(LOCALE, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+const localTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
 /**
  * Format a monetary value as INR currency string.
  * Accepts string (from DB) or number.
@@ -52,33 +84,49 @@ export function formatPercent(value) {
 }
 
 /**
- * Format an ISO date string to a short date (e.g. "22 Oct 2026").
- * @param {string} iso
+ * Format a date string.
+ * - Date-only strings ('YYYY-MM-DD') are parsed as UTC and formatted with timeZone 'UTC'
+ *   to ensure identical output ("10 Oct 2026") across all client timezones.
+ * - Full ISO timestamps preserve the user's local timezone.
+ *
+ * @param {string} dateString
  * @returns {string}
  */
-export function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(LOCALE, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+export function formatDate(dateString) {
+  if (!dateString) return '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return utcFullDateFormatter.format(new Date(`${dateString}T00:00:00Z`));
+  }
+  return localFullDateFormatter.format(new Date(dateString));
 }
 
 /**
- * Format an ISO date string to a short time (e.g. "2:30 PM").
+ * Shared short-date helper for chart axis ticks and tooltips.
+ * Eliminates all inline toLocaleDateString calls in components.
+ * Always handles date-only strings in UTC.
+ *
+ * @param {string} dateString
+ * @param {{ includeDay?: boolean }} options
+ * @returns {string}
+ */
+export function formatChartDate(dateString, { includeDay = true } = {}) {
+  if (!dateString) return '';
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+  const d = new Date(isDateOnly ? `${dateString}T00:00:00Z` : dateString);
+  return includeDay ? utcShortDateWithDay.format(d) : utcShortDateMonthOnly.format(d);
+}
+
+/**
+ * Format an ISO timestamp string to a local short time (e.g. "2:30 PM").
  * @param {string} iso
  * @returns {string}
  */
 export function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString(LOCALE, {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return localTimeFormatter.format(new Date(iso));
 }
 
 /**
- * Format an ISO date string to "22 Oct, 2:30 PM".
+ * Format an ISO timestamp string to local "22 Oct 2026, 2:30 PM".
  * @param {string} iso
  * @returns {string}
  */
@@ -88,7 +136,7 @@ export function formatDateTime(iso) {
 
 /**
  * Convert monetary string values to numbers for chart display.
- * This is DISPLAY-ONLY — no financial arithmetic should happen in components.
+ * DISPLAY-ONLY adapter — no financial arithmetic in components.
  * @param {Array<{date: string, value: string}>} points
  * @returns {Array<{date: string, value: number}>}
  */
