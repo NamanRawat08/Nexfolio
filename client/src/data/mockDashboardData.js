@@ -2,16 +2,19 @@
  * SAMPLE DATA ONLY — Nexfolio Trading Simulation.
  * Not real market data, not connected to any external exchange or live API.
  *
- * NOTE ON MONEY REPRESENTATION:
+ * NOTE ON MONEY REPRESENTATION & ARITHMETIC:
  * Monetary amounts are represented as strings (e.g. "1284500.00") rather than
  * JavaScript floating-point numbers. This mirrors PostgreSQL NUMERIC / DECIMAL
  * responses over JSON and avoids binary IEEE-754 precision loss.
- * Components display them via format utilities; charts convert them in an
- * explicit display-only adapter (utils/format.js: toChartNumbers).
+ *
+ * All range calculations here are performed using integer paise (Math.round(x * 100))
+ * for exact arithmetic. In production, a real API will compute these figures
+ * server-side directly from database NUMERIC columns.
  */
 
-// Simple deterministic pseudo-random number generator (LCG) to ensure
-// identical chart points across every load and test run.
+export const SAMPLE_AS_OF = '2026-10-26'; // Fixed deterministic sample as-of date
+
+// Simple deterministic pseudo-random number generator (LCG)
 function seededRandom(seed) {
   let s = seed % 2147483647;
   if (s <= 0) s += 2147483646;
@@ -21,71 +24,101 @@ function seededRandom(seed) {
   };
 }
 
-// Generate deterministic historical portfolio chart data points
-function generatePortfolioHistory(days, baseValue, trendPercent, seed) {
-  const rand = seededRandom(seed);
-  const points = [];
-  const now = new Date('2026-10-26T12:00:00Z');
-  const stepGrowth = Math.pow(1 + trendPercent / 100, 1 / days);
+/**
+ * Generate ONE single deterministic historical series of 366 daily points
+ * spanning exactly 365 days ending on SAMPLE_AS_OF (2026-10-26).
+ *
+ * Keyframes are designed so:
+ * - 1Y change is positive (+31.07%)
+ * - 6M change is positive (+17.84%)
+ * - 3M change is positive (+10.26%)
+ * - 1M change is modestly negative (-2.10%) to exercise loss styling
+ * - Final point is exactly 1284500.00 INR (128,450,000 paise)
+ */
+function generateMasterSeries() {
+  const TOTAL_DAYS = 365; // 366 daily points: index 0 to 365
+  const TARGET_FINAL_PAISE = 128450000; // 1,284,500.00 INR
+  const asOf = new Date(SAMPLE_AS_OF + 'T00:00:00Z');
+  const rand = seededRandom(42);
 
-  let current = baseValue;
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000);
-    const dateStr = d.toISOString().slice(0, 10);
-    // Add realistic deterministic fluctuation (+/- 1.2%)
-    const wobble = (rand() - 0.48) * 0.024;
-    current = current * stepGrowth * (1 + wobble);
-    points.push({
-      date: dateStr,
-      value: current.toFixed(2),
-    });
+  const keyframes = [
+    { day: 0, paise: 98000000 },    // 1Y start (~980,000 INR)
+    { day: 183, paise: 109000000 }, // 6M start (~1,090,000 INR)
+    { day: 275, paise: 116500000 }, // 3M start (~1,165,000 INR)
+    { day: 335, paise: 131200000 }, // 1M start (~1,312,000 INR -> negative to final)
+    { day: 365, paise: 128450000 }, // Final point: exactly 1,284,500.00 INR
+  ];
+
+  const points = [];
+  for (let k = 0; k < keyframes.length - 1; k++) {
+    const startKf = keyframes[k];
+    const endKf = keyframes[k + 1];
+    const span = endKf.day - startKf.day;
+
+    for (let d = startKf.day; d < endKf.day; d++) {
+      const progress = (d - startKf.day) / span;
+      const base = startKf.paise + (endKf.paise - startKf.paise) * progress;
+      const wobbleFactor = Math.sin(progress * Math.PI) * (rand() - 0.5) * 0.015;
+      const paise = Math.round(base * (1 + wobbleFactor));
+
+      const dt = new Date(asOf.getTime() - (TOTAL_DAYS - d) * 86400000);
+      points.push({
+        date: dt.toISOString().slice(0, 10),
+        value: (paise / 100).toFixed(2),
+      });
+    }
   }
+
+  // Exact final point
+  points.push({
+    date: SAMPLE_AS_OF,
+    value: (TARGET_FINAL_PAISE / 100).toFixed(2),
+  });
+
   return points;
 }
 
+// Single source of truth for portfolio history (366 daily points)
+export const masterPortfolioSeries = generateMasterSeries();
+
+/**
+ * Derive range summary from a slice of the master series.
+ * Performs money arithmetic in integer paise.
+ *
+ * @param {Array<{date: string, value: string}>} seriesSlice
+ * @param {string} rangeLabel
+ */
+function buildRange(seriesSlice, rangeLabel) {
+  const startPaise = Math.round(parseFloat(seriesSlice[0].value) * 100);
+  const endPaise = Math.round(parseFloat(seriesSlice[seriesSlice.length - 1].value) * 100);
+  const changePaise = endPaise - startPaise;
+
+  return {
+    rangeLabel,
+    startValue: (startPaise / 100).toFixed(2),
+    currentValue: (endPaise / 100).toFixed(2),
+    changeAmount: (changePaise / 100).toFixed(2),
+    changePercent: changePaise / startPaise,
+    startDate: seriesSlice[0].date,
+    endDate: seriesSlice[seriesSlice.length - 1].date,
+    points: seriesSlice,
+  };
+}
+
+// Ranges derived by slicing the tail of the single master series:
+// 1M = 30 days (31 points)
+// 3M = 90 days (91 points)
+// 6M = 182 days (183 points)
+// 1Y = 365 days (366 points)
 export const portfolioRanges = {
-  '1M': {
-    rangeLabel: '1M',
-    startValue: '1218500.00',
-    currentValue: '1284500.00',
-    changeAmount: '66000.00',
-    changePercent: 0.0542, // +5.42%
-    startDate: '2026-09-26',
-    endDate: '2026-10-26',
-    points: generatePortfolioHistory(30, 1218500, 5.42, 101),
-  },
-  '3M': {
-    rangeLabel: '3M',
-    startValue: '1165000.00',
-    currentValue: '1284500.00',
-    changeAmount: '119500.00',
-    changePercent: 0.1026, // +10.26%
-    startDate: '2026-07-26',
-    endDate: '2026-10-26',
-    points: generatePortfolioHistory(90, 1165000, 10.26, 202),
-  },
-  '6M': {
-    rangeLabel: '6M',
-    startValue: '1092000.00',
-    currentValue: '1284500.00',
-    changeAmount: '192500.00',
-    changePercent: 0.1763, // +17.63%
-    startDate: '2026-04-26',
-    endDate: '2026-10-26',
-    points: generatePortfolioHistory(180, 1092000, 17.63, 303),
-  },
-  '1Y': {
-    rangeLabel: '1Y',
-    startValue: '985000.00',
-    currentValue: '1284500.00',
-    changeAmount: '299500.00',
-    changePercent: 0.3041, // +30.41%
-    startDate: '2025-10-26',
-    endDate: '2026-10-26',
-    points: generatePortfolioHistory(365, 985000, 30.41, 404),
-  },
+  '1M': buildRange(masterPortfolioSeries.slice(-31), '1M'),
+  '3M': buildRange(masterPortfolioSeries.slice(-91), '3M'),
+  '6M': buildRange(masterPortfolioSeries.slice(-183), '6M'),
+  '1Y': buildRange(masterPortfolioSeries.slice(-366), '1Y'),
 };
 
+// Available cash (250,000.00) + Invested value (1,034,500.00) = 1,284,500.00
+// Exactly consistent with portfolio currentValue
 export const walletData = {
   availableCash: '250000.00',
   investedValue: '1034500.00',
