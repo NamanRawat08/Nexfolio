@@ -56,7 +56,7 @@ export function DesktopLayout() {
         <div>
           <div className="h-16 flex items-center justify-between px-3.5 border-b border-line">
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-9 h-9 rounded-lg bg-accent text-accent-fg font-black text-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-9 h-9 rounded-lg bg-accent text-accent-fg font-black text-lg flex items-center justify-center shrink-0 shadow-sm">
                 N
               </div>
               {isExpanded && (
@@ -97,7 +97,7 @@ export function DesktopLayout() {
                     }`}
                     title={item.label}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                    <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
                     {isExpanded && <span className="truncate">{item.label}</span>}
                   </a>
                 );
@@ -115,7 +115,7 @@ export function DesktopLayout() {
                     !isExpanded && 'justify-center'
                   }`}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                  <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
                   {isExpanded && <span className="truncate">{item.label}</span>}
                 </button>
               );

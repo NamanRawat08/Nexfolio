@@ -63,7 +63,7 @@ export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
             <Inbox className="w-8 h-8 mb-2 opacity-50" aria-hidden="true" />
             <p className="text-sm font-medium text-fg">No simulated orders yet</p>
             <p className="text-xs mt-1 text-muted">
-              Executed orders will appear here in real-time.
+              Executed orders will appear here.
             </p>
           </div>
         ) : (
@@ -97,7 +97,7 @@ export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
                   </div>
                 </div>
 
-                <div className="text-right flex-shrink-0 ml-3">
+                <div className="text-right shrink-0 ml-3">
                   <div className="text-sm font-semibold tabular-nums text-fg">
                     {formatCurrency(order.totalAmount)}
                   </div>

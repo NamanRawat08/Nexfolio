@@ -46,7 +46,7 @@ export function ApiStatus({ showLabel = true, className = '' }) {
     >
       <span
         aria-hidden="true"
-        className={`w-2 h-2 rounded-full flex-shrink-0 ${config.color}`}
+        className={`w-2 h-2 rounded-full shrink-0 ${config.color}`}
       />
       {showLabel ? (
         <span className="text-xs text-muted truncate">{config.label}</span>
