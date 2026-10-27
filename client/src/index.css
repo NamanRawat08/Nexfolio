@@ -72,3 +72,29 @@ body {
 .recharts-tooltip-wrapper {
   outline: none;
 }
+
+/*
+ * Custom utility for hiding scrollbars while preserving scrolling & snapping
+ * Follows Tailwind v4 @utility directive syntax
+ */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Recharts accessible focus ring — visible only on keyboard navigation */
+.recharts-surface:focus:not(:focus-visible),
+.recharts-surface *:focus:not(:focus-visible),
+.recharts-wrapper:focus:not(:focus-visible),
+.recharts-wrapper *:focus:not(:focus-visible) {
+  outline: none;
+}
+.recharts-surface:focus-visible,
+.recharts-wrapper:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
