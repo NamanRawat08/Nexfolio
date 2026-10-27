@@ -16,25 +16,31 @@ export function ApiStatus({ showLabel = true, className = '' }) {
       color: 'bg-accent animate-pulse',
       label: 'Checking API...',
       title: 'Health check in progress',
+      accessibleName: 'Checking API',
     },
     online: {
       color: 'bg-gain',
       label: 'API online',
       title: 'Backend Express server connected',
+      accessibleName: 'API online',
     },
     unreachable: {
       color: 'bg-loss',
       label: 'API unreachable',
       title: 'Backend server not responding on /api/health',
+      accessibleName: 'API unreachable',
     },
   }[status] || {
     color: 'bg-muted',
     label: 'Checking...',
     title: 'Health check status',
+    accessibleName: 'Checking API',
   };
 
   return (
     <div
+      role="status"
+      aria-label={config.accessibleName}
       className={`inline-flex items-center gap-2 select-none ${className}`}
       title={config.title}
     >
@@ -42,8 +48,10 @@ export function ApiStatus({ showLabel = true, className = '' }) {
         aria-hidden="true"
         className={`w-2 h-2 rounded-full flex-shrink-0 ${config.color}`}
       />
-      {showLabel && (
+      {showLabel ? (
         <span className="text-xs text-muted truncate">{config.label}</span>
+      ) : (
+        <span className="sr-only">{config.accessibleName}</span>
       )}
     </div>
   );

@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
 import {
-  LayoutDashboard,
-  PieChart,
-  ListOrdered,
-  Eye,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -20,6 +15,7 @@ import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
+import { NAV_ITEMS } from '../config/navItems.js';
 
 const STORAGE_KEY = 'nexfolio_sidebar_expanded';
 
@@ -46,14 +42,6 @@ export function DesktopLayout() {
       return next;
     });
   };
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, active: true },
-    { id: 'portfolio', label: 'Portfolio', icon: PieChart, active: false },
-    { id: 'orders', label: 'Orders', icon: ListOrdered, active: false },
-    { id: 'watchlist', label: 'Watchlist', icon: Eye, active: false },
-    { id: 'settings', label: 'Settings', icon: Settings, active: false },
-  ];
 
   return (
     <div className="min-h-screen bg-bg text-fg flex">
@@ -96,7 +84,7 @@ export function DesktopLayout() {
 
           {/* Navigation Links */}
           <nav className="p-2 space-y-1">
-            {navItems.map((item) => {
+            {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               if (item.active) {
                 return (
@@ -122,7 +110,7 @@ export function DesktopLayout() {
                   type="button"
                   disabled
                   aria-disabled="true"
-                  title="Coming soon — navigation router not yet initialized"
+                  title="Coming soon"
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted/60 hover:text-muted cursor-not-allowed transition-colors ${
                     !isExpanded && 'justify-center'
                   }`}
@@ -180,6 +168,7 @@ export function DesktopLayout() {
                 type="text"
                 disabled
                 aria-disabled="true"
+                aria-label="Search instruments"
                 title="Search not available yet"
                 placeholder="Search instruments (e.g. RELIANCE, TCS)"
                 className="w-full bg-surface-2/80 text-fg text-sm pl-9 pr-4 py-2 rounded-lg border border-line focus:outline-none placeholder:text-muted/60 disabled:cursor-not-allowed disabled:opacity-60 cursor-not-allowed"
@@ -190,7 +179,7 @@ export function DesktopLayout() {
           {/* Right Header Controls */}
           <div className="flex items-center gap-3">
             {/* Persistent Simulated Data Badge */}
-            <Badge variant="accent" className="hidden sm:inline-flex items-center gap-1">
+            <Badge variant="accent" className="inline-flex items-center gap-1">
               <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Simulated data</span>
             </Badge>
@@ -199,7 +188,7 @@ export function DesktopLayout() {
             {/* TODO(feature): wire up workspace switcher */}
             <div
               title="Workspace switching not available yet"
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-2 border border-line text-xs font-semibold text-fg select-none"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-2 border border-line text-xs font-semibold text-fg select-none"
             >
               <span className="w-2 h-2 rounded-full bg-accent" aria-hidden="true" />
               <span>Simulation</span>
@@ -234,7 +223,7 @@ export function DesktopLayout() {
             {/* User Profile Card */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-line">
               <Avatar initials="DU" size="md" ariaLabel="Demo User profile" />
-              <div className="text-left hidden lg:block leading-tight">
+              <div className="text-left block leading-tight">
                 <span className="text-xs font-bold text-fg block">Demo User</span>
                 <span className="text-[11px] text-muted block">Paper Trader</span>
               </div>
