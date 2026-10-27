@@ -49,6 +49,40 @@ function PerformanceTooltip({ active, payload, label }) {
 }
 
 /**
+ * Custom accessible legend with token swatches for Invested (accent), Returns (gain), and Loss.
+ */
+function CustomBarLegend() {
+  return (
+    <div className="flex items-center justify-end gap-3.5 text-[11px] text-muted pb-2 select-none">
+      <div className="flex items-center gap-1.5">
+        <span
+          className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+          style={{ backgroundColor: 'var(--color-accent)' }}
+          data-legend-swatch="invested"
+        />
+        <span>Invested</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span
+          className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+          style={{ backgroundColor: 'var(--color-gain)' }}
+          data-legend-swatch="returns"
+        />
+        <span>Returns</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span
+          className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+          style={{ backgroundColor: 'var(--color-loss)' }}
+          data-legend-swatch="loss"
+        />
+        <span>Loss</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Monthly Performance Bar Chart.
  *
  * @param {object} props
@@ -84,19 +118,19 @@ export function MonthlyPerformanceChart({ compact = false }) {
             margin={{ top: 10, right: 10, left: compact ? -18 : 0, bottom: 0 }}
           >
             <CartesianGrid
-              stroke="#33261e"
+              stroke="var(--color-line)"
               strokeDasharray="3 3"
               vertical={false}
             />
             <XAxis
               dataKey="month"
-              stroke="#a89a8d"
+              stroke="var(--color-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              stroke="#a89a8d"
+              stroke="var(--color-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -106,26 +140,26 @@ export function MonthlyPerformanceChart({ compact = false }) {
             <Legend
               verticalAlign="top"
               align="right"
-              iconType="circle"
-              wrapperStyle={{ paddingBottom: '10px', fontSize: '11px' }}
+              content={<CustomBarLegend />}
             />
             <Bar
               name="Invested"
               dataKey="invested"
-              fill="#d9993a"
+              fill="var(--color-accent)"
               radius={[4, 4, 0, 0]}
               maxBarSize={28}
             />
             <Bar
               name="Returns"
               dataKey="returns"
+              fill="var(--color-gain)"
               radius={[4, 4, 0, 0]}
               maxBarSize={28}
             >
               {data.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={entry.returns >= 0 ? '#34d399' : '#ef6a5b'}
+                  fill={entry.returns >= 0 ? 'var(--color-gain)' : 'var(--color-loss)'}
                 />
               ))}
             </Bar>

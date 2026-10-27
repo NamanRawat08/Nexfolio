@@ -15,6 +15,7 @@ import {
   formatCurrency,
   formatPercent,
   formatDate,
+  formatChartDate,
   toChartNumbers,
 } from '../../utils/format.js';
 import { TrendingUp, TrendingDown } from 'lucide-react';
@@ -115,32 +116,26 @@ export function PortfolioChart({ compact = false }) {
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#d9993a" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#d9993a" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0.0} />
               </linearGradient>
             </defs>
             <CartesianGrid
-              stroke="#33261e"
+              stroke="var(--color-line)"
               strokeDasharray="3 3"
               vertical={false}
             />
             <XAxis
               dataKey="date"
-              stroke="#a89a8d"
+              stroke="var(--color-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(d) => {
-                const date = new Date(d);
-                return date.toLocaleDateString('en-IN', {
-                  month: 'short',
-                  day: compact ? undefined : 'numeric',
-                });
-              }}
+              tickFormatter={(d) => formatChartDate(d, { includeDay: !compact })}
               minTickGap={compact ? 40 : 50}
             />
             <YAxis
-              stroke="#a89a8d"
+              stroke="var(--color-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -151,14 +146,14 @@ export function PortfolioChart({ compact = false }) {
             <Area
               type="monotone"
               dataKey="value"
-              stroke="#d9993a"
+              stroke="var(--color-accent)"
               strokeWidth={2.2}
               fillOpacity={1}
               fill={`url(#${gradientId})`}
               activeDot={{
                 r: 5,
-                fill: '#d9993a',
-                stroke: '#1c1511',
+                fill: 'var(--color-accent)',
+                stroke: 'var(--color-surface)',
                 strokeWidth: 2,
               }}
             />
