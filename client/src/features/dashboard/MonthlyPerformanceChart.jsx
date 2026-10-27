@@ -11,8 +11,14 @@ import {
   Cell,
 } from 'recharts';
 import { Card } from '../../components/ui/Card.jsx';
-import { monthlyPerformanceData } from '../../data/mockDashboardData.js';
-import { formatCurrency } from '../../utils/format.js';
+import { monthlyPerformanceData, SAMPLE_AS_OF } from '../../data/mockDashboardData.js';
+import {
+  formatCurrency,
+  formatSignedCurrency,
+  formatMonthTick,
+  formatMonthYear,
+  toChartNumbers,
+} from '../../utils/format.js';
 
 function PerformanceTooltip({ active, payload, label }) {
   if (active && payload && payload.length) {
@@ -22,7 +28,9 @@ function PerformanceTooltip({ active, payload, label }) {
 
     return (
       <div className="bg-surface-2 border border-line p-3 rounded-lg shadow-lg text-xs min-w-[140px]">
-        <p className="font-semibold text-fg mb-1.5">{label} 2026</p>
+        <p className="font-semibold text-fg mb-1.5">
+          {formatMonthYear(label, { asOfDate: SAMPLE_AS_OF })}
+        </p>
         <div className="space-y-1">
           <div className="flex justify-between items-center text-muted">
             <span>Invested:</span>
@@ -37,8 +45,7 @@ function PerformanceTooltip({ active, payload, label }) {
                 isGain ? 'text-gain' : 'text-loss'
               }`}
             >
-              {isGain ? '+' : ''}
-              {formatCurrency(returns, { compact: true })}
+              {formatSignedCurrency(returns, { compact: true })}
             </span>
           </div>
         </div>
@@ -56,7 +63,7 @@ function CustomBarLegend() {
     <div className="flex items-center justify-end gap-3.5 text-[11px] text-muted pb-2 select-none">
       <div className="flex items-center gap-1.5">
         <span
-          className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+          className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
           style={{ backgroundColor: 'var(--color-accent)' }}
           data-legend-swatch="invested"
         />
@@ -64,7 +71,7 @@ function CustomBarLegend() {
       </div>
       <div className="flex items-center gap-1.5">
         <span
-          className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+          className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
           style={{ backgroundColor: 'var(--color-gain)' }}
           data-legend-swatch="returns"
         />
@@ -72,7 +79,7 @@ function CustomBarLegend() {
       </div>
       <div className="flex items-center gap-1.5">
         <span
-          className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+          className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
           style={{ backgroundColor: 'var(--color-loss)' }}
           data-legend-swatch="loss"
         />
@@ -89,9 +96,10 @@ function CustomBarLegend() {
  * @param {boolean} [props.compact] - 6 months on mobile vs 12 months on desktop
  */
 export function MonthlyPerformanceChart({ compact = false }) {
-  const data = compact
+  const rawData = compact
     ? monthlyPerformanceData.slice(-6)
     : monthlyPerformanceData;
+  const data = toChartNumbers(rawData);
 
   return (
     <Card className="flex flex-col">
@@ -128,6 +136,7 @@ export function MonthlyPerformanceChart({ compact = false }) {
               fontSize={11}
               tickLine={false}
               axisLine={false}
+              tickFormatter={formatMonthTick}
             />
             <YAxis
               stroke="var(--color-muted)"
@@ -136,7 +145,10 @@ export function MonthlyPerformanceChart({ compact = false }) {
               axisLine={false}
               tickFormatter={(v) => formatCurrency(v, { compact: true })}
             />
-            <Tooltip content={<PerformanceTooltip />} />
+            <Tooltip
+              content={<PerformanceTooltip />}
+              cursor={{ fill: 'var(--color-surface-2)', opacity: 0.5 }}
+            />
             <Legend
               verticalAlign="top"
               align="right"
