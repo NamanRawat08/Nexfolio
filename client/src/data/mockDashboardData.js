@@ -119,29 +119,67 @@ export const portfolioRanges = {
 
 // Available cash (250,000.00) + Invested value (1,034,500.00) = 1,284,500.00
 // Exactly consistent with portfolio currentValue
+// Day P&L is derived from the last two points of masterPortfolioSeries.
+// Uses integer paise arithmetic; output fields are strings like the rest of the file.
+// In production, a real API will compute this server-side from PostgreSQL NUMERIC columns.
+const prevDayPoint = masterPortfolioSeries[masterPortfolioSeries.length - 2];
+const lastDayPoint = masterPortfolioSeries[masterPortfolioSeries.length - 1];
+const prevDayPaise = Math.round(parseFloat(prevDayPoint.value) * 100);
+const lastDayPaise = Math.round(parseFloat(lastDayPoint.value) * 100);
+const dayPnLPaise = lastDayPaise - prevDayPaise;
+
+const derivedDayPnL = (dayPnLPaise / 100).toFixed(2);
+const derivedDayPnLPercent = dayPnLPaise / prevDayPaise;
+const derivedIsDayPnLPositive = dayPnLPaise >= 0;
+
 export const walletData = {
   availableCash: '250000.00',
   investedValue: '1034500.00',
-  dayPnL: '12850.50',
-  dayPnLPercent: 0.0101, // +1.01%
-  isDayPnLPositive: true,
-  totalSimulatedPortfolio: '1284500.00',
+  dayPnL: derivedDayPnL,
+  dayPnLPercent: derivedDayPnLPercent,
+  isDayPnLPositive: derivedIsDayPnLPositive,
+  totalSimulatedPortfolio: lastDayPoint.value,
 };
 
-export const monthlyPerformanceData = [
-  { month: 'Nov', invested: 720000, returns: 32000 },
-  { month: 'Dec', invested: 750000, returns: 48000 },
-  { month: 'Jan', invested: 810000, returns: -14000 },
-  { month: 'Feb', invested: 840000, returns: 26000 },
-  { month: 'Mar', invested: 890000, returns: 58000 },
-  { month: 'Apr', invested: 920000, returns: 41000 },
-  { month: 'May', invested: 950000, returns: 33000 },
-  { month: 'Jun', invested: 980000, returns: -22000 },
-  { month: 'Jul', invested: 1010000, returns: 62000 },
-  { month: 'Aug', invested: 1040000, returns: 51000 },
-  { month: 'Sep', invested: 1060000, returns: 44000 },
-  { month: 'Oct', invested: 1034500, returns: 66000 },
+// Months: 2025-11 through 2026-10 (12 entries).
+// Invested stays sample data (October's invested equals walletData.investedValue).
+// Monthly returns are derived from the change in portfolio value between the last point
+// of the previous month and the last point of the current month (or SAMPLE_AS_OF for the current month).
+// Integer paise arithmetic, strings out.
+const MONTH_BUCKET_CONFIG = [
+  { month: '2025-11', endKey: '2025-11-30', invested: '720000.00' },
+  { month: '2025-12', endKey: '2025-12-31', invested: '750000.00' },
+  { month: '2026-01', endKey: '2026-01-31', invested: '810000.00' },
+  { month: '2026-02', endKey: '2026-02-28', invested: '840000.00' },
+  { month: '2026-03', endKey: '2026-03-31', invested: '890000.00' },
+  { month: '2026-04', endKey: '2026-04-30', invested: '920000.00' },
+  { month: '2026-05', endKey: '2026-05-31', invested: '950000.00' },
+  { month: '2026-06', endKey: '2026-06-30', invested: '980000.00' },
+  { month: '2026-07', endKey: '2026-07-31', invested: '1010000.00' },
+  { month: '2026-08', endKey: '2026-08-31', invested: '1040000.00' },
+  { month: '2026-09', endKey: '2026-09-30', invested: '1060000.00' },
+  { month: '2026-10', endKey: SAMPLE_AS_OF, invested: '1034500.00' },
 ];
+
+function deriveMonthlyPerformance() {
+  const ptOct31 = masterPortfolioSeries.find((p) => p.date === '2025-10-31');
+  let baselinePaise = Math.round(parseFloat(ptOct31.value) * 100);
+
+  return MONTH_BUCKET_CONFIG.map((bucket) => {
+    const endPt = masterPortfolioSeries.find((p) => p.date === bucket.endKey);
+    const endPaise = Math.round(parseFloat(endPt.value) * 100);
+    const returnPaise = endPaise - baselinePaise;
+    baselinePaise = endPaise; // Next month's baseline
+
+    return {
+      month: bucket.month,
+      invested: bucket.invested,
+      returns: (returnPaise / 100).toFixed(2),
+    };
+  });
+}
+
+export const monthlyPerformanceData = deriveMonthlyPerformance();
 
 export const recentOrdersData = [
   {

@@ -26,32 +26,14 @@ const percentFormatter = new Intl.NumberFormat(LOCALE, {
   signDisplay: 'exceptZero',
 });
 
-// Formatters for date-only strings (YYYY-MM-DD) pinned to UTC
-const utcFullDateFormatter = new Intl.DateTimeFormat(LOCALE, {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
-const utcShortDateWithDay = new Intl.DateTimeFormat(LOCALE, {
-  day: 'numeric',
-  month: 'short',
-  timeZone: 'UTC',
-});
-
-const utcShortDateMonthOnly = new Intl.DateTimeFormat(LOCALE, {
-  month: 'short',
-  timeZone: 'UTC',
-});
+// Explicit English 3-letter month table ensuring identical output across all browsers
+// (e.g. Chrome otherwise produces "Sept" while Safari produces "Sep" for en-IN)
+export const SHORT_MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
 // Local formatters for full ISO timestamp strings (e.g. order timestamps)
-const localFullDateFormatter = new Intl.DateTimeFormat(LOCALE, {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
-
 const localTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
   hour: 'numeric',
   minute: '2-digit',
@@ -72,8 +54,26 @@ export function formatCurrency(value, { compact = false } = {}) {
 }
 
 /**
+ * Format a monetary value with an explicit '+' for positive values,
+ * and formatCurrency's natural '-' for negative values (never doubled).
+ * Used uniformly across desktop and mobile wallet/performance cards.
+ *
+ * @param {string|number} value
+ * @param {{ compact?: boolean }} options
+ * @returns {string}
+ */
+export function formatSignedCurrency(value, options) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (Number.isNaN(num)) return '—';
+  if (num > 0) {
+    return `+${formatCurrency(num, options)}`;
+  }
+  return formatCurrency(num, options);
+}
+
+/**
  * Format a decimal ratio as a percentage string.
- * E.g. 0.0512 → "+5.12%"
+ * E.g. 0.0512 → "+5.12%", -0.0014 → "-0.14%"
  * @param {string|number} value — a decimal ratio, not already multiplied by 100
  * @returns {string}
  */
@@ -87,7 +87,7 @@ export function formatPercent(value) {
  * Format a date string.
  * - Date-only strings ('YYYY-MM-DD') are parsed as UTC and formatted with timeZone 'UTC'
  *   to ensure identical output ("10 Oct 2026") across all client timezones.
- * - Full ISO timestamps preserve the user's local timezone.
+ * - Uses SHORT_MONTHS table for cross-browser uniformity (Sep instead of Sept).
  *
  * @param {string} dateString
  * @returns {string}
@@ -95,9 +95,12 @@ export function formatPercent(value) {
 export function formatDate(dateString) {
   if (!dateString) return '—';
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-    return utcFullDateFormatter.format(new Date(`${dateString}T00:00:00Z`));
+    const d = new Date(`${dateString}T00:00:00Z`);
+    return `${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   }
-  return localFullDateFormatter.format(new Date(dateString));
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /**
@@ -113,7 +116,54 @@ export function formatChartDate(dateString, { includeDay = true } = {}) {
   if (!dateString) return '';
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
   const d = new Date(isDateOnly ? `${dateString}T00:00:00Z` : dateString);
-  return includeDay ? utcShortDateWithDay.format(d) : utcShortDateMonthOnly.format(d);
+  if (Number.isNaN(d.getTime())) return '';
+  const month = SHORT_MONTHS[isDateOnly ? d.getUTCMonth() : d.getMonth()];
+  if (!includeDay) return month;
+  const day = isDateOnly ? d.getUTCDate() : d.getDate();
+  return `${day} ${month}`;
+}
+
+/**
+ * Format a 'YYYY-MM' month string for chart axis ticks (e.g. "2025-11" -> "Nov").
+ * Uses explicit English month table for cross-browser consistency.
+ *
+ * @param {string} monthKey
+ * @returns {string}
+ */
+export function formatMonthTick(monthKey) {
+  if (!monthKey) return '';
+  const parts = monthKey.split('-');
+  if (parts.length >= 2) {
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    return SHORT_MONTHS[monthIndex] || monthKey;
+  }
+  return monthKey;
+}
+
+/**
+ * Format a 'YYYY-MM' month string for tooltip headers (e.g. "2025-11" -> "Nov 2025",
+ * or for current month "2026-10" -> "Oct 2026 (to 26 Oct)").
+ * UTC-safe, no hard-coded year.
+ *
+ * @param {string} monthKey - 'YYYY-MM'
+ * @param {{ asOfDate?: string }} [options]
+ * @returns {string}
+ */
+export function formatMonthYear(monthKey, { asOfDate } = {}) {
+  if (!monthKey) return '';
+  const parts = monthKey.split('-');
+  if (parts.length < 2) return monthKey;
+  const year = parts[0];
+  const monthIndex = parseInt(parts[1], 10) - 1;
+  const monthName = SHORT_MONTHS[monthIndex] || '';
+  const base = `${monthName} ${year}`;
+  if (asOfDate && asOfDate.startsWith(monthKey)) {
+    const d = new Date(`${asOfDate}T00:00:00Z`);
+    const day = d.getUTCDate();
+    const asOfMonth = SHORT_MONTHS[d.getUTCMonth()];
+    return `${base} (to ${day} ${asOfMonth})`;
+  }
+  return base;
 }
 
 /**
@@ -137,12 +187,23 @@ export function formatDateTime(iso) {
 /**
  * Convert monetary string values to numbers for chart display.
  * DISPLAY-ONLY adapter — no financial arithmetic in components.
- * @param {Array<{date: string, value: string}>} points
- * @returns {Array<{date: string, value: number}>}
+ * Handles both time-series points (with .value) and monthly performance rows (with .invested, .returns).
+ *
+ * @param {Array<object>} items
+ * @returns {Array<object>}
  */
-export function toChartNumbers(points) {
-  return points.map((p) => ({
-    ...p,
-    value: parseFloat(p.value),
-  }));
+export function toChartNumbers(items) {
+  return items.map((item) => {
+    const res = { ...item };
+    if ('value' in item && typeof item.value === 'string') {
+      res.value = parseFloat(item.value);
+    }
+    if ('invested' in item && typeof item.invested === 'string') {
+      res.invested = parseFloat(item.invested);
+    }
+    if ('returns' in item && typeof item.returns === 'string') {
+      res.returns = parseFloat(item.returns);
+    }
+    return res;
+  });
 }
