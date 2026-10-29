@@ -76,10 +76,12 @@ export function WalletCards({ compact = false }) {
           // Mobile: Horizontal scroll-snap carousel with card edge bleed and peek
           <div>
             <div
-              tabIndex={0}
+              role="group"
+              aria-roledescription="carousel"
               aria-label="Simulated balances carousel"
+              tabIndex={0}
               onScroll={handleScroll}
-              className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory -mx-4 px-4 sm:-mx-5 sm:px-5 scroll-px-4 sm:scroll-px-5 no-scrollbar focus:outline-none"
+              className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory -mx-4 px-4 sm:-mx-5 sm:px-5 scroll-px-4 sm:scroll-px-5 no-scrollbar rounded-xl"
             >
               {cards.map((c) => {
                 const Icon = c.icon;
