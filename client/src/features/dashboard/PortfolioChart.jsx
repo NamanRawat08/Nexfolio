@@ -13,6 +13,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl.jsx';
 import { portfolioRanges } from '../../data/mockDashboardData.js';
 import {
   formatCurrency,
+  formatSignedCurrency,
   formatPercent,
   formatDate,
   formatChartDate,
@@ -26,6 +27,58 @@ const RANGE_OPTIONS = [
   { label: '3M', value: '3M' },
   { label: '1M', value: '1M' },
 ];
+
+/**
+ * Compute mobile x-axis ticks to ensure even spacing and avoid skipped or repeated months.
+ *
+ * @param {string} range - '1M' | '3M' | '6M' | '1Y'
+ * @param {Array<{date: string}>} points
+ * @returns {string[]|undefined} array of date strings to use as ticks
+ */
+export function getMobileChartTicks(range, points) {
+  if (!points || points.length === 0) return undefined;
+
+  switch (range) {
+    case '1M':
+      // 5 evenly spaced ticks with 7-day cadence (never repeating months ambiguously)
+      return [
+        points[2]?.date,
+        points[9]?.date,
+        points[16]?.date,
+        points[23]?.date,
+        points[points.length - 1]?.date,
+      ].filter(Boolean);
+
+    case '3M':
+      // 5 evenly spaced ticks (~21 days apart)
+      return [
+        points[4]?.date,
+        points[25]?.date,
+        points[46]?.date,
+        points[67]?.date,
+        points[points.length - 1]?.date,
+      ].filter(Boolean);
+
+    case '6M':
+      // First-of-month ticks for all 6 months (May through Oct, no month skipped)
+      return points
+        .map((p) => p.date)
+        .filter((d) => d.endsWith('-01'));
+
+    case '1Y':
+      // First-of-month ticks thinned evenly every 3 months
+      return [
+        '2025-11-01',
+        '2026-02-01',
+        '2026-05-01',
+        '2026-08-01',
+        '2026-10-01',
+      ].filter((d) => points.some((p) => p.date === d));
+
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Custom accessible tooltip for Recharts.
@@ -65,9 +118,9 @@ export function PortfolioChart({ compact = false }) {
   const ariaDescription = `Simulated portfolio value over ${selectedRange}: started at ${formatCurrency(
     currentData.startValue,
     { compact: true }
-  )} on ${currentData.startDate}, currently ${formatCurrency(
+  )} on ${formatDate(currentData.startDate)}, currently ${formatCurrency(
     currentData.currentValue
-  )} on ${currentData.endDate}, change of ${isPositive ? '+' : ''}${formatCurrency(
+  )} on ${formatDate(currentData.endDate)}, change of ${formatSignedCurrency(
     currentData.changeAmount
   )} (${formatPercent(currentData.changePercent)}).`;
 
@@ -87,8 +140,7 @@ export function PortfolioChart({ compact = false }) {
             >
               <ChangeIcon className="w-4 h-4" aria-hidden="true" />
               <span>
-                {isPositive ? '+' : ''}
-                {formatCurrency(currentData.changeAmount)} (
+                {formatSignedCurrency(currentData.changeAmount)} (
                 {formatPercent(currentData.changePercent)})
               </span>
             </span>
@@ -131,8 +183,15 @@ export function PortfolioChart({ compact = false }) {
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(d) => formatChartDate(d, { includeDay: !compact })}
-              minTickGap={compact ? 40 : 50}
+              ticks={compact ? getMobileChartTicks(selectedRange, currentData.points) : undefined}
+              tickFormatter={(d) => {
+                if (!compact) return formatChartDate(d, { includeDay: true });
+                if (selectedRange === '1M' || selectedRange === '3M') {
+                  return formatChartDate(d, { includeDay: true });
+                }
+                return formatChartDate(d, { includeDay: false });
+              }}
+              minTickGap={compact ? 20 : 50}
             />
             <YAxis
               stroke="var(--color-muted)"
