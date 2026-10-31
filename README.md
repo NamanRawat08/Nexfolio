@@ -43,7 +43,7 @@ nexfolio/
           RecentOrders.jsx            # Order history list and empty state
           WalletCards.jsx             # Liquid balances, snap carousel, and quick actions
       hooks/
-        useHealthCheck.js # Polling health hook tracking API status
+        useHealthCheck.js # Single-fetch health check hook tracking API status on mount
         useMediaQuery.js  # useSyncExternalStore-backed media query listener
       layouts/
         DesktopLayout.jsx # Desktop shell (collapsible sidebar rail, top header, 12-col grid)
@@ -77,10 +77,10 @@ nexfolio/
 
 Nexfolio switches between two layouts dynamically based on viewport width:
 - **Breakpoint**: `1024px` (`(min-width: 1024px)`)
-- **Hook**: `useMediaQuery` powered by `useSyncExternalStore` with module-level store caching to ensure stable subscriber identities and zero re-renders.
+- **Hook**: `useMediaQuery` powered by `useSyncExternalStore` with module-level store caching to ensure stable subscription identities.
 - **Desktop Layout (`>= 1024px`)**:
   - Collapsible icon rail sidebar with persistent state in `localStorage` (`nexfolio_sidebar_collapsed`).
-  - Top navigation bar featuring search input, simulated live clock, and status pill.
+  - Top navigation bar featuring search input, simulated data badge, workspace switcher pill, notification and theme toggle buttons, and user profile.
   - Multi-column dashboard grid.
 - **Mobile Layout (`< 1024px`)**:
   - Sticky mobile header with compact branding and simulated mode badge.
@@ -102,10 +102,9 @@ All portfolio figures and time ranges are derived from a single deterministic se
 The following controls are intentional visual placeholders awaiting future backend and engine integration:
 1. **Sidebar / Bottom Navigation Tabs**: `Portfolio`, `Orders`, `Watchlist`, `Settings` (styled with `aria-disabled="true"` and inactive indicators).
 2. **Search Inputs**: Desktop search input and mobile search button (both `disabled`).
-3. **Workspace Switcher**: User workspace dropdown button (`disabled`).
-4. **Notifications**: Bell notification button in header (`disabled`).
+3. **Notifications**: Bell notification button in header (`disabled`).
+4. **Theme Toggle**: Light theme toggle button in desktop header (`disabled`).
 5. **Quick Actions**: "Buy" and "Sell" buttons in wallet cards (`disabled` with simulation-only tooltips).
-6. **Recent Orders**: Interactive filters and "View all" order history links.
 
 ## How to Run in Development
 
@@ -136,6 +135,6 @@ Or run them individually in separate terminals:
 
 ## Status & Scope Boundaries
 
-Nexfolio is currently in Phase 1 (UI Shell & Dashboard Foundation):
-- **Implemented**: Express 5 server with health check (`/api/health`), Vite React frontend with dark theme design tokens, dual desktop/mobile layout shells, Recharts visualizations with custom accessible tooltips, keyboard focus management, and deterministic sample data.
+Current status: dashboard UI with sample data. No auth, database or trading logic yet.
+- **Implemented**: Express 5 server with health check (`/api/health`), Vite React frontend with dark theme design tokens, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
 - **Not Implemented**: Real money trading, brokerage integration, exchange APIs, user authentication, session persistence, order matching engines, and PostgreSQL database storage.
