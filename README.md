@@ -66,7 +66,7 @@ nexfolio/
       utils/              # Utility helpers directory placeholder (.gitkeep)
       app.js              # Express app setup and middleware configuration
       server.js           # Server listen entrypoint
-    .env.example          # Environment variable template
+    .env.example          # Environment variable template (PORT, CLIENT_ORIGIN, DATABASE_URL)
     package.json          # Server dependencies and npm scripts
   .gitignore              # Global git ignore configuration
   package.json            # Root workspace scripts (npm run dev, install:all, etc.)
@@ -118,6 +118,8 @@ npm run install:all
 ```
 
 ### 3. Start Development Servers
+The server requires `DATABASE_URL` (e.g. `postgresql://USER:PASSWORD@localhost:5432/DBNAME` from `server/.env.example`) to be configured before starting.
+
 To start both client and server concurrently:
 ```bash
 npm run dev
@@ -132,6 +134,12 @@ Or run them individually in separate terminals:
   ```bash
   npm run dev:client
   ```
+
+### 4. Run Tests
+To run backend tests using Node.js built-in test runner:
+```bash
+cd server && npm test
+```
 
 ## Status & Scope Boundaries
 

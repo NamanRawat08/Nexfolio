@@ -20,9 +20,8 @@ app.use(
   })
 );
 
-// JSON body parser with sensible size limit
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// JSON body parser with 100kb limit (no urlencoded parser for JSON API)
+app.use(express.json({ limit: '100kb' }));
 
 // Request logging: concise dev format in development
 if (config.nodeEnv === 'development') {
@@ -37,7 +36,7 @@ app.use('/api', apiRouter);
 // 404 handler for unmapped routes
 app.use(notFoundHandler);
 
-// Centralized error handler
+// Centralized error handler (must come last)
 app.use(errorHandler);
 
 export default app;
