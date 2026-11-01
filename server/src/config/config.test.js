@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadConfig } from './index.js';
+import { loadConfig } from './loadConfig.js';
 
 describe('loadConfig', () => {
   const validBaseEnv = {
