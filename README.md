@@ -1,88 +1,140 @@
 # Nexfolio
 
-Nexfolio is a full-stack stock trading simulation platform designed for learning, testing, and paper trading strategies using simulated or sample market data. The platform involves no real money and has no brokerage integrations, providing a risk-free environment for simulated portfolio management and market observation.
+Nexfolio is a full-stack stock trading simulation platform designed for learning, testing, and paper trading strategies using simulated market data. The platform involves no real money, no real capital at risk, and has no brokerage integrations, providing a risk-free environment for simulated portfolio management and market observation.
 
-## Tech Stack
+## Tech Stack & Versions
 
-- **Frontend**: React (JavaScript), Vite
-- **Backend**: Node.js, Express (ES Modules)
-- **Database**: PostgreSQL (planned; not yet integrated)
-- **Tooling**: Concurrently, dotenv, helmet, cors, morgan
+Based on `package.json` dependencies:
 
-## Prerequisites
+### Frontend (`client/`)
+- **React**: `19.3.1` (with `react-dom` `19.3.1`, `@types/react` `19.3.0`, `@types/react-dom` `19.3.0`)
+- **Build Tool**: Vite `8.3.5` (with `@vitejs/plugin-react` `6.1.2`)
+- **Styling**: Tailwind CSS `4.3.3` (with `@tailwindcss/vite` `4.3.3`)
+- **Charts**: Recharts `3.10.1`
+- **Icons**: Lucide React `1.61.0`
+- **Linter**: Oxlint `1.89.0`
 
-- **Node.js**: v20+ (developed on v24.19.0)
-- **npm**: v10+ (developed on 11.17.0)
-- **Git**: v2+
+### Backend (`server/`)
+- **Framework**: Express `5.3.0` (ES Modules)
+- **Security**: Helmet `8.3.0`, CORS `2.8.6`
+- **Logging**: Morgan `1.12.1`
+- **Environment**: Dotenv `16.6.1`
+- **Runtime**: Node.js v24.19.0 (compatible with v20+)
 
 ## Project Structure
 
-```
+```text
 nexfolio/
-  client/                 # Vite React application
+  client/
+    public/
+      favicon.svg         # SVG favicon with brand mark
+    src/
+      components/
+        ui/               # UI primitives (Avatar, Badge, Button, Card, SegmentedControl, Skeleton)
+      config/
+        navItems.js       # Centralized navigation item definitions
+      data/
+        mockDashboardData.js # Deterministic seeded master series and derived ranges/metrics
+      features/
+        dashboard/        # Layout-agnostic dashboard widgets
+          ApiStatus.jsx               # Express health check indicator
+          MonthlyPerformanceChart.jsx # Grouped bar chart comparing capital and returns
+          PortfolioChart.jsx          # Valuation chart with range selector & mobile tick logic
+          RecentOrders.jsx            # Order history list and empty state
+          WalletCards.jsx             # Liquid balances, snap carousel, and quick actions
+      hooks/
+        useHealthCheck.js # Single-fetch health check hook tracking API status on mount
+        useMediaQuery.js  # useSyncExternalStore-backed media query listener
+      layouts/
+        DesktopLayout.jsx # Desktop shell (collapsible sidebar rail, top header, 12-col grid)
+        MobileLayout.jsx  # Mobile shell (compact sticky header, bottom navigation bar)
+      utils/
+        format.js         # Currency, UTC date, month, percentage formatters, and chart adapters
+      App.jsx             # Layout selection via useMediaQuery('(min-width: 1024px)')
+      index.css           # Tailwind v4 @theme design tokens, accessible focus rings, utilities
+      main.jsx            # Application root mount
+    index.html            # HTML entrypoint linking favicon.svg
+    vite.config.js        # Vite build configuration with React and Tailwind plugins
+    package.json          # Client dependencies and npm scripts
   server/
     src/
-      config/             # Environment loading and startup validation
-      routes/             # API route definitions
-      controllers/        # Request handlers
-      services/           # Business logic layer
+      config/             # Environment loading and port validation
+      controllers/        # Health check controller
       middleware/         # 404 handler and centralized error middleware
-      utils/              # Shared helper functions
-      app.js              # Express application assembly (no listen call)
-      server.js           # Server entrypoint and port listener
-    .env.example          # Environment variable template with comments
-    package.json          # Backend dependencies and scripts
+      routes/             # Health routes and API router assembly
+      services/           # Business logic directory placeholder (.gitkeep)
+      utils/              # Utility helpers directory placeholder (.gitkeep)
+      app.js              # Express app setup and middleware configuration
+      server.js           # Server listen entrypoint
+    .env.example          # Environment variable template
+    package.json          # Server dependencies and npm scripts
   .gitignore              # Global git ignore configuration
-  package.json            # Root workspace scripts and dev tooling
+  package.json            # Root workspace scripts (npm run dev, install:all, etc.)
   README.md               # Project documentation
 ```
 
-## Environment Variables
+## Responsive Layout Architecture
 
-The server requires specific environment variables defined in `server/.env`. Use `server/.env.example` as a template:
+Nexfolio switches between two layouts dynamically based on viewport width:
+- **Breakpoint**: `1024px` (`(min-width: 1024px)`)
+- **Hook**: `useMediaQuery` powered by `useSyncExternalStore` with module-level store caching to ensure stable subscription identities.
+- **Desktop Layout (`>= 1024px`)**:
+  - Collapsible icon rail sidebar with persistent state in `localStorage` (`nexfolio_sidebar_collapsed`).
+  - Top navigation bar featuring search input, simulated data badge, workspace switcher pill, notification and theme toggle buttons, and user profile.
+  - Multi-column dashboard grid.
+- **Mobile Layout (`< 1024px`)**:
+  - Sticky mobile header with compact branding and simulated mode badge.
+  - Horizontally scrollable snap carousel for simulated wallet balances with active dot indicators.
+  - Fixed bottom navigation bar with safe-area bottom inset padding.
+- **Zero DOM Duplication**: Only one layout shell is mounted at any given time. Shared dashboard widgets accept a `compact` prop to adjust tick density, chart height, and padding.
 
-| Variable | Description | Required | Default |
-| :--- | :--- | :--- | :--- |
-| `NODE_ENV` | Application environment (`development`, `production`, `test`) | No | `development` |
-| `PORT` | Port number on which the Express server listens | No | `5001` |
-| `CLIENT_ORIGIN` | Allowed client origin for CORS restrictions | No | `http://localhost:5173` |
+## Sample Data & Visual Placeholders
 
-## Setup Steps
+### Deterministic Seeded Series
+All portfolio figures and time ranges are derived from a single deterministic seeded master series (`masterPortfolioSeries` in `mockDashboardData.js`):
+- Master series spans 366 daily points ending at sample date `2026-10-26`.
+- Ranges (`1Y`, `6M`, `3M`, `1M`) are exact slices of this master series.
+- Day P&L is calculated directly from the change between the last two daily points (`-₹1,798.90` / `-0.14%`).
+- Monthly performance returns (12 buckets from `2025-11` to `2026-10`) are derived from month-end valuation delta in the master series.
+- All financial calculations are done in integer paise arithmetic to avoid floating-point inaccuracies.
 
-1. Clone or open the repository.
-2. Install all root, server, and client dependencies:
-   ```bash
-   npm run install:all
-   ```
-3. Create local server environment configuration:
-   ```bash
-   cp server/.env.example server/.env
-   ```
+### Visual Placeholders & Disabled Controls
+The following controls are intentional visual placeholders awaiting future backend and engine integration:
+1. **Sidebar / Bottom Navigation Tabs**: `Portfolio`, `Orders`, `Watchlist`, `Settings` (styled with `aria-disabled="true"` and inactive indicators).
+2. **Search Inputs**: Desktop search input and mobile search button (both `disabled`).
+3. **Notifications**: Bell notification button in header (`disabled`).
+4. **Theme Toggle**: Light theme toggle button in desktop header (`disabled`).
+5. **Quick Actions**: "Buy" and "Sell" buttons in wallet cards (`disabled` with simulation-only tooltips).
 
 ## How to Run in Development
 
-To start both the client and server concurrently:
+### 1. Prerequisites
+- Node.js v20+ (tested on Node v24)
+- npm v10+
+
+### 2. Install Dependencies
+```bash
+npm run install:all
+```
+
+### 3. Start Development Servers
+To start both client and server concurrently:
 ```bash
 npm run dev
 ```
 
-Alternatively, you can run services individually:
-- Start backend server:
+Or run them individually in separate terminals:
+- Backend Express server (Port 5001):
   ```bash
   npm run dev:server
   ```
-- Start frontend client:
+- Frontend Vite client (Port 5173):
   ```bash
   npm run dev:client
   ```
 
-Once running:
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:5001`
-- Backend Health Check: `http://localhost:5001/api/health`
+## Status & Scope Boundaries
 
-## Status
-
-Phase 1 (Project Foundation) is currently implemented. The repository contains the modular Express backend structure, health check endpoint (`/api/health`), centralized error handling, environment validation, and the Vite React frontend with proxy configuration and health status monitoring. Authentication, database connectivity, real-time market data, and trading simulation features have not been implemented yet.
-# Nexfolio
-# Nexfolio
+Current status: dashboard UI with sample data. No auth, database or trading logic yet.
+- **Implemented**: Express 5 server with health check (`/api/health`), Vite React frontend with dark theme design tokens, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, user authentication, session persistence, order matching engines, and PostgreSQL database storage.
