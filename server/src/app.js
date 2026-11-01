@@ -2,12 +2,13 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
-import { config } from './config/index.js';
+import { getConfig } from './config/index.js';
 import apiRouter from './routes/index.js';
 import { notFoundHandler } from './middleware/notFound.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
+const config = getConfig();
 
 // Security headers
 app.use(helmet());
