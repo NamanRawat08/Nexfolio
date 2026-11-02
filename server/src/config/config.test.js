@@ -8,6 +8,7 @@ describe('loadConfig', () => {
     PORT: '5001',
     CLIENT_ORIGIN: 'http://localhost:5173',
     DATABASE_URL: 'postgresql://testuser:testpass@localhost:5432/testdb',
+    JWT_SECRET: 'test_jwt_secret_min_32_characters_long_abcdef123456',
   };
 
   it('valid input returns a frozen config object with correct properties', () => {
@@ -16,6 +17,9 @@ describe('loadConfig', () => {
     assert.equal(config.port, 5001);
     assert.equal(config.clientOrigin, 'http://localhost:5173');
     assert.equal(config.databaseUrl, 'postgresql://testuser:testpass@localhost:5432/testdb');
+    assert.equal(config.jwtSecret, 'test_jwt_secret_min_32_characters_long_abcdef123456');
+    assert.equal(config.jwtExpiresInSeconds, 86400);
+    assert.equal(config.bcryptCost, 12);
     assert.equal(Object.isFrozen(config), true);
   });
 
@@ -55,6 +59,55 @@ describe('loadConfig', () => {
         return true;
       }
     );
+  });
+
+  it('missing JWT_SECRET throws without leaking values', () => {
+    const env = { ...validBaseEnv };
+    delete env.JWT_SECRET;
+
+    assert.throws(
+      () => loadConfig(env),
+      (err) => {
+        assert.match(err.message, /JWT_SECRET/);
+        return true;
+      }
+    );
+  });
+
+  it('short JWT_SECRET throws without leaking the secret value', () => {
+    const shortSecret = 'short-secret-value-123';
+    const env = { ...validBaseEnv, JWT_SECRET: shortSecret };
+
+    assert.throws(
+      () => loadConfig(env),
+      (err) => {
+        assert.match(err.message, /JWT_SECRET/);
+        assert.equal(err.message.includes(shortSecret), false);
+        return true;
+      }
+    );
+  });
+
+  it('valid BCRYPT_COST env parses properly within 4-14', () => {
+    const configMin = loadConfig({ ...validBaseEnv, BCRYPT_COST: '4' });
+    assert.equal(configMin.bcryptCost, 4);
+
+    const configMax = loadConfig({ ...validBaseEnv, BCRYPT_COST: '14' });
+    assert.equal(configMax.bcryptCost, 14);
+  });
+
+  it('invalid BCRYPT_COST throws without leaking the supplied value', () => {
+    const badCosts = ['3', '15', 'abc', '4.5', '-1'];
+    for (const badCost of badCosts) {
+      assert.throws(
+        () => loadConfig({ ...validBaseEnv, BCRYPT_COST: badCost }),
+        (err) => {
+          assert.match(err.message, /BCRYPT_COST/);
+          assert.equal(err.message.includes(badCost), false);
+          return true;
+        }
+      );
+    }
   });
 
   it('bad PORT throws without leaking the supplied value', () => {
