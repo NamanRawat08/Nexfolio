@@ -1,4 +1,5 @@
 import { loadConfig } from './config/index.js';
+import { closePool } from './db/pool.js';
 
 let config;
 try {
@@ -11,8 +12,7 @@ try {
 const { default: app } = await import('./app.js');
 
 // Registry of async cleanup functions run during graceful shutdown
-// (e.g. pg Pool termination will be registered here)
-export const cleanupTasks = [];
+export const cleanupTasks = [closePool];
 
 let isShuttingDown = false;
 

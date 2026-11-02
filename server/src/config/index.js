@@ -22,21 +22,3 @@ export function getConfig() {
 
 // Re-export pure loadConfig
 export { loadConfig };
-
-// On-demand config access for modules like app.js without throwing at import time
-export const config = {
-  get nodeEnv() {
-    return getConfig().nodeEnv;
-  },
-  get port() {
-    return getConfig().port;
-  },
-  get clientOrigin() {
-    return getConfig().clientOrigin;
-  },
-  get databaseUrl() {
-    return getConfig().databaseUrl;
-  },
-};
-
-export default config;

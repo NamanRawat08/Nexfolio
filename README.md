@@ -136,10 +136,35 @@ Or run them individually in separate terminals:
   ```
 
 ### 4. Run Tests
-To run backend tests using Node.js built-in test runner:
+To run backend tests using Node.js built-in test runner (tests do not require a running database or `server/.env`):
 ```bash
 cd server && npm test
 ```
+
+### 5. Run Database Migrations
+Migrations are managed with [node-pg-migrate](https://salsita.github.io/node-pg-migrate/). The user runs migrations manually — the server does not auto-migrate.
+
+Set up `server/.env` with a valid `DATABASE_URL` first (see `server/.env.example`), then from the `server/` directory:
+
+```bash
+# Apply all pending migrations
+npm run migrate:up
+
+# Roll back the most recent migration
+npm run migrate:down
+
+# Create a new migration file
+npm run migrate:create <migration_name>
+```
+
+Migrations live in `server/migrations/`. The first migration (`0001_create_users_table`) creates a `users` table with `id`, `email`, `username`, `password_hash`, `token_version`, `created_at`, and `updated_at` columns, along with case-insensitive unique indexes on `lower(email)` and `lower(username)`.
+
+## API Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Express server liveness check. Returns `{ status, service, timestamp }`. |
+| GET | `/api/health/db` | Database connectivity check. Returns `{ status, database, timestamp }` on success, or `503 DB_UNAVAILABLE` on failure or timeout (2 s). |
 
 ## Status & Scope Boundaries
 
