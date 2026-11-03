@@ -8,7 +8,7 @@ describe('auth.routes and rate limiting', () => {
       ip,
       headers: {},
       app: {
-        get: () => false, // trust proxy disabled
+        get: () => false,
       },
     };
     const res = {
