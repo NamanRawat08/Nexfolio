@@ -9,7 +9,8 @@ try {
   process.exit(1);
 }
 
-const { default: app } = await import('./app.js');
+const { createApp } = await import('./app.js');
+const app = createApp();
 
 // Registry of async cleanup functions run during graceful shutdown
 export const cleanupTasks = [closePool];

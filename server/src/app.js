@@ -54,33 +54,3 @@ export function createApp(customConfig) {
 
   return app;
 }
-
-let appInstance = null;
-
-function getApp() {
-  if (!appInstance) {
-    appInstance = createApp();
-  }
-  return appInstance;
-}
-
-// Lazy app proxy so importing app does not call getConfig() at import time
-const defaultApp = function (req, res, next) {
-  return getApp()(req, res, next);
-};
-
-const proxyApp = new Proxy(defaultApp, {
-  get(target, prop) {
-    if (prop in target) {
-      return target[prop];
-    }
-    const instance = getApp();
-    const value = instance[prop];
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  },
-});
-
-export default proxyApp;

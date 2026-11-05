@@ -54,33 +54,3 @@ export function createApiRouter({ config, query = poolQuery, limiterOptions } = 
 
   return apiRouter;
 }
-
-let apiRouterInstance = null;
-
-function getApiRouter() {
-  if (!apiRouterInstance) {
-    apiRouterInstance = createApiRouter();
-  }
-  return apiRouterInstance;
-}
-
-// Lazy router proxy to avoid invoking getConfig() or database pool at import time
-const defaultApiRouter = function (req, res, next) {
-  return getApiRouter()(req, res, next);
-};
-
-const proxyApiRouter = new Proxy(defaultApiRouter, {
-  get(target, prop) {
-    if (prop in target) {
-      return target[prop];
-    }
-    const instance = getApiRouter();
-    const value = instance[prop];
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  },
-});
-
-export default proxyApiRouter;
