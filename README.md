@@ -162,7 +162,20 @@ npm run migrate:down
 npm run migrate:create <migration_name>
 ```
 
-Migrations live in `server/migrations/`. The first migration (`0001_create_users_table`) creates a `users` table with `id`, `email`, `username`, `password_hash`, `token_version`, `created_at`, and `updated_at` columns, along with case-insensitive unique indexes on `lower(email)` and `lower(username)`.
+Migrations live in `server/migrations/`:
+- `0001_create_users_table`: Creates `users` table with `id`, `email`, `username`, `password_hash`, `token_version`, `created_at`, and `updated_at` columns, along with case-insensitive unique indexes on `lower(email)` and `lower(username)`.
+- `0002_create_instruments_table`: Creates `instruments` table with `id`, `symbol`, `name`, `sector`, and `created_at` columns, symbol/name check constraints, and a unique expression index on `upper(symbol)`.
+- `0003_create_price_history_table`: Creates `price_history` table with composite primary key `(instrument_id, trade_date)` and foreign key referencing `instruments(id) ON DELETE CASCADE`, tracking daily `close_price` (`NUMERIC(12,2) > 0`).
+
+### 6. Seed Market Data
+To populate the database with initial instruments and deterministic historical closing prices:
+```bash
+cd server && npm run seed
+```
+- Populates exactly 18 Indian large-cap instruments (`instrumentsData`) and generates 366 consecutive calendar days of closing prices ending `2026-10-26` via a deterministic Mulberry32 PRNG.
+- Runs inside a single transaction (`BEGIN` / `COMMIT`, rolling back on error).
+- Idempotent: uses `ON CONFLICT ((upper(symbol))) DO NOTHING` for instruments and `ON CONFLICT (instrument_id, trade_date) DO NOTHING` for price history.
+- The seed script strictly refuses to run when `NODE_ENV === 'production'`.
 
 ## API Routes
 
