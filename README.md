@@ -118,7 +118,12 @@ npm run install:all
 ```
 
 ### 3. Start Development Servers
-The server requires `DATABASE_URL` (e.g. `postgresql://USER:PASSWORD@localhost:5432/DBNAME` from `server/.env.example`) to be configured before starting.
+The server requires `DATABASE_URL` (e.g. `postgresql://USER:PASSWORD@localhost:5432/DBNAME`) and `JWT_SECRET` (at least 32 characters long) to be configured in `server/.env` before starting.
+
+The user must generate `JWT_SECRET` themselves (e.g. using Node's crypto module) and never commit it:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
 To start both client and server concurrently:
 ```bash
@@ -165,9 +170,31 @@ Migrations live in `server/migrations/`. The first migration (`0001_create_users
 |--------|------|-------------|
 | GET | `/api/health` | Express server liveness check. Returns `{ status, service, timestamp }`. |
 | GET | `/api/health/db` | Database connectivity check. Returns `{ status, database, timestamp }` on success, or `503 DB_UNAVAILABLE` on failure or timeout (2 s). |
+| POST | `/api/auth/register` | User registration. Validates email, username, and password (8–72 bytes). Returns `201 { user: { id, email, username, createdAt } }`. Does not set cookie. Rate limited (10 req / 15 min). |
+| POST | `/api/auth/login` | User authentication via email or username. Returns `200 { user: { id, email, username } }`. Sets `nexfolio_token` HTTP-only cookie. Token never appears in body. Rate limited (10 req / 15 min). |
+| POST | `/api/auth/logout` | User logout. Requires auth. Increments token version in DB to invalidate existing sessions and clears `nexfolio_token` cookie. Returns `204` No Content. |
+| GET | `/api/auth/me` | Current user profile. Requires auth via `nexfolio_token` cookie. Returns `200 { user: { id, email, username, createdAt } }`. |
+
+### Authentication & Cookie Behavior
+
+- **Cookie Name**: `nexfolio_token`
+- **Cookie Attributes**: `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`, `maxAge: 86400000` (24 hours). `secure: true` in production (`secure: false` in development).
+- **Session Revocation**: Logout increments `token_version` on the user record; existing JWTs carrying stale `token_version` are rejected immediately on subsequent requests.
+- **Timing Equalization**: On login with an unknown email or username, dummy bcrypt verification is performed to equalize execution duration and eliminate timing attack side channels.
+
+### Known Limitations
+
+- **No CSRF Tokens**: Relies on `SameSite: 'lax'` cookie policy.
+- **Enumeration**: Registration returns `409 EMAIL_TAKEN` or `409 USERNAME_TAKEN`, revealing whether an email or username exists.
+- **No Email Verification**: Accounts are active immediately without email confirmation.
+- **No Password Reset**: Password recovery workflows are not implemented.
+- **In-Memory Rate Limiting**: Rate limiting uses in-memory tracking per IP address, which resets on server restarts and is not shared across horizontal server instances.
+- **Email Lowercased**: Emails are normalized and stored lowercased for case-insensitive lookup.
+- **JWT Secret Validation**: `JWT_SECRET` is only validated for minimum character length (32 chars) at startup.
+- **Frontend Auth UI**: Backend authentication endpoints are fully implemented; frontend login and registration UI forms are not yet built (the dashboard runs in simulated demo mode).
 
 ## Status & Scope Boundaries
 
-Current status: dashboard UI with sample data. No auth, database or trading logic yet.
-- **Implemented**: Express 5 server with health check (`/api/health`), Vite React frontend with dark theme design tokens, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
-- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, user authentication, session persistence, order matching engines, and PostgreSQL database storage.
+Current status: responsive dashboard UI with sample data and backend authentication foundation with PostgreSQL migration.
+- **Implemented**: Express 5 server with health checks (`/api/health`, `/api/health/db`), PostgreSQL database connection pooling and migration for `users` table, backend authentication HTTP layer (`/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) with HTTP-only cookies and in-memory rate limiting, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, frontend authentication UI/forms, order matching engines.
