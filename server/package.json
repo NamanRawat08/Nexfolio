@@ -10,7 +10,8 @@
     "migrate": "node --env-file=.env ./node_modules/node-pg-migrate/bin/node-pg-migrate.js --migrations-dir migrations",
     "migrate:up": "npm run migrate -- up",
     "migrate:down": "npm run migrate -- down",
-    "migrate:create": "npm run migrate -- create"
+    "migrate:create": "npm run migrate -- create",
+    "seed": "node --env-file=.env seed/seed.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
