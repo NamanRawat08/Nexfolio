@@ -187,6 +187,9 @@ cd server && npm run seed
 | POST | `/api/auth/login` | User authentication via email or username. Returns `200 { user: { id, email, username } }`. Sets `nexfolio_token` HTTP-only cookie. Token never appears in body. Rate limited (10 req / 15 min). |
 | POST | `/api/auth/logout` | User logout. Requires auth. Increments token version in DB to invalidate existing sessions and clears `nexfolio_token` cookie. Returns `204` No Content. |
 | GET | `/api/auth/me` | Current user profile. Requires auth via `nexfolio_token` cookie. Returns `200 { user: { id, email, username, createdAt } }`. |
+| GET | `/api/instruments` | List instruments with latest and previous close (prices as decimal strings). Requires auth. Query: `search` (max 50 chars, matches symbol or name), `limit` (1–100, default 50), `offset` (default 0). Returns `200 { instruments: [...] }`. Invalid query returns `400 INVALID_QUERY`. |
+| GET | `/api/instruments/:symbol` | Single instrument (case-insensitive symbol). Requires auth. Returns `200 { instrument }`, `400 INVALID_SYMBOL`, or `404 INSTRUMENT_NOT_FOUND`. |
+| GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
 
 ### Authentication & Cookie Behavior
 
@@ -209,5 +212,5 @@ cd server && npm run seed
 ## Status & Scope Boundaries
 
 Current status: responsive dashboard UI with sample data and backend authentication foundation with PostgreSQL migration.
-- **Implemented**: Express 5 server with health checks (`/api/health`, `/api/health/db`), PostgreSQL database connection pooling and migration for `users` table, backend authentication HTTP layer (`/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) with HTTP-only cookies and in-memory rate limiting, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
+- **Implemented**: Express 5 server with health checks (`/api/health`, `/api/health/db`), PostgreSQL database connection pooling and migration for `users` table, market data HTTP endpoints (`/api/instruments`), backend authentication HTTP layer (`/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) with HTTP-only cookies and in-memory rate limiting, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
 - **Not Implemented**: Real money trading, brokerage integration, exchange APIs, frontend authentication UI/forms, order matching engines.
