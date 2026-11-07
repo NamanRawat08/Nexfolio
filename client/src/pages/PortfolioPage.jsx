@@ -13,7 +13,7 @@ function StatCard({ label, value, note, tone }) {
   return (
     <Card padding="sm" className="min-w-0">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">{label}</div>
-      <div className={`mt-1 truncate text-lg font-bold tabular-nums ${color}`}>
+      <div className={`mt-1 truncate font-display lining-nums text-xl font-semibold tabular-nums ${color}`}>
         {value === null || value === undefined
           ? '—'
           : tone === 'signed'
