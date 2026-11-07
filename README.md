@@ -176,6 +176,7 @@ Migrations live in `server/migrations/`:
 - `0001_create_users_table`: Creates `users` table with `id`, `email`, `username`, `password_hash`, `token_version`, `created_at`, and `updated_at` columns, along with case-insensitive unique indexes on `lower(email)` and `lower(username)`.
 - `0002_create_instruments_table`: Creates `instruments` table with `id`, `symbol`, `name`, `sector`, and `created_at` columns, symbol/name check constraints, and a unique expression index on `upper(symbol)`.
 - `0003_create_price_history_table`: Creates `price_history` table with composite primary key `(instrument_id, trade_date)` and foreign key referencing `instruments(id) ON DELETE CASCADE`, tracking daily `close_price` (`NUMERIC(12,2) > 0`).
+- `0004_create_wallets_table`: Creates `wallets` (one row per user, `cash_paise BIGINT >= 0`, cascade delete). A trigger on `users` gives every new user a wallet with 1,00,00,000 paise (₹10,00,000) in the same transaction as the user insert; existing users are backfilled.
 
 ### 6. Seed Market Data
 To populate the database with initial instruments and deterministic historical closing prices:
@@ -200,6 +201,7 @@ cd server && npm run seed
 | GET | `/api/instruments` | List instruments with latest and previous close (prices as decimal strings). Requires auth. Query: `search` (max 50 chars, matches symbol or name), `limit` (1–100, default 50), `offset` (default 0). Returns `200 { instruments: [...] }`. Invalid query returns `400 INVALID_QUERY`. |
 | GET | `/api/instruments/:symbol` | Single instrument (case-insensitive symbol). Requires auth. Returns `200 { instrument }`, `400 INVALID_SYMBOL`, or `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
+| GET | `/api/wallet` | Signed-in user's simulated cash. Requires auth. Returns `200 { wallet: { cashPaise, cash, currency } }` (`cashPaise` is an integer string, `cash` is rupees with 2 decimals, currency `INR`). New users start with ₹10,00,000. |
 
 ### Authentication & Cookie Behavior
 

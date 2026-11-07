@@ -2,6 +2,7 @@ import { Router } from 'express';
 import healthRoutes from './health.routes.js';
 import { createAuthRouter } from './auth.routes.js';
 import { createInstrumentRouter } from './instrument.routes.js';
+import { createWalletRouter } from './wallet.routes.js';
 import { createAuthController } from '../controllers/auth.controller.js';
 import { createAuthMiddleware } from '../middleware/auth.middleware.js';
 import { createAuthService } from '../services/auth.service.js';
@@ -9,6 +10,8 @@ import * as tokenService from '../services/token.service.js';
 import * as passwordService from '../services/password.service.js';
 import { createInstrumentController } from '../controllers/instrument.controller.js';
 import { createInstrumentRepository } from '../repositories/instrument.repository.js';
+import { createWalletController } from '../controllers/wallet.controller.js';
+import { createWalletRepository } from '../repositories/wallet.repository.js';
 import { createUserRepository } from '../repositories/user.repository.js';
 import { query as poolQuery } from '../db/pool.js';
 import { getConfig } from '../config/index.js';
@@ -62,6 +65,11 @@ export function createApiRouter({ config, query = poolQuery, limiterOptions } = 
     '/instruments',
     createInstrumentRouter({ controller: instrumentController, authMiddleware })
   );
+
+  // Wallet composition: repository, controller, and router (authenticated)
+  const walletRepo = createWalletRepository(query);
+  const walletController = createWalletController({ walletRepo });
+  apiRouter.use('/wallet', createWalletRouter({ controller: walletController, authMiddleware }));
 
   return apiRouter;
 }
