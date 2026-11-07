@@ -9,5 +9,7 @@ export const authApi = {
     request('/auth/login', { method: 'POST', body: { identifier, password } }),
   register: (email, username, password) =>
     request('/auth/register', { method: 'POST', body: { email, username, password } }),
+  changePassword: (currentPassword, newPassword) =>
+    request('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } }),
   logout: () => request('/auth/logout', { method: 'POST' }),
 };

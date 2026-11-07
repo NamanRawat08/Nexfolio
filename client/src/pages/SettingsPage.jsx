@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { PageHeader } from './PageHeader.jsx';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
+import { authApi } from '../api/auth.js';
+import { friendlyAuthError, validatePasswordChange } from '../features/auth/authMessages.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { formatDate } from '../utils/format.js';
@@ -24,7 +26,85 @@ function Section({ title, description, children }) {
   );
 }
 
-/** Appearance, account details and sign-out. */
+function PasswordField({ label, value, onChange, autoComplete }) {
+  const id = useId();
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-xs font-semibold text-fg">
+        {label}
+      </label>
+      <input
+        id={id}
+        type="password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        required
+        className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+      />
+    </div>
+  );
+}
+
+/** Change-password form. Other devices are signed out; this one stays signed in. */
+function ChangePasswordForm() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    setDone(false);
+    const problem = validatePasswordChange({ currentPassword, newPassword, confirmPassword });
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setDone(true);
+    } catch (err) {
+      setError(friendlyAuthError(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-3">
+      <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password" />
+      <PasswordField label="New password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" />
+      <p className="-mt-1 text-[11px] text-muted">At least 8 characters. Longer is safer.</p>
+      <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
+
+      {error && (
+        <p role="alert" className="rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-xs text-loss">
+          {error}
+        </p>
+      )}
+      {done && (
+        <p role="status" className="rounded-lg border border-gain/30 bg-gain/10 px-3 py-2 text-xs text-gain">
+          Your password was changed. You have been signed out on your other devices.
+        </p>
+      )}
+
+      <Button type="submit" variant="primary" disabled={submitting}>
+        {submitting ? 'Saving…' : 'Change password'}
+      </Button>
+    </form>
+  );
+}
+
+/** Appearance, account details, password and sign-out. */
 export function SettingsPage() {
   const { user, logout } = useAuth();
   const { preference, setPreference } = useTheme();
@@ -62,6 +142,10 @@ export function SettingsPage() {
                 ))}
               </div>
             </fieldset>
+          </Section>
+
+          <Section title="Password" description="Choose a new password. Other devices will be signed out.">
+            <ChangePasswordForm />
           </Section>
 
           <Section title="Session">

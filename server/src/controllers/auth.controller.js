@@ -64,6 +64,23 @@ export function createAuthController({ authService, config = {} } = {}) {
     },
 
     /**
+     * Handles a password change for the signed-in user. Other sessions are signed out; this
+     * device receives a fresh cookie so it stays signed in. The token never appears in the body.
+     */
+    async changePassword(req, res, next) {
+      try {
+        const { token } = await authService.changePassword(req.user.id, req.body);
+        res.cookie(COOKIE_NAME, token, {
+          ...cookieOptions,
+          maxAge: COOKIE_MAX_AGE_MS,
+        });
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    /**
      * Handles user logout.
      * Requires authentication; invalidates tokens and clears the cookie.
      */

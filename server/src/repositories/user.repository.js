@@ -115,6 +115,41 @@ export async function incrementTokenVersion(id, query = defaultQuery) {
 }
 
 /**
+ * Reads a user's password hash by id. Like findByIdentifier, this is one of the only places
+ * that returns password_hash; it exists so a signed-in user can prove their current password.
+ *
+ * @param {string|number} id
+ * @param {Function} [query=defaultQuery]
+ * @returns {Promise<{ id: string|number, passwordHash: string } | null>}
+ */
+export async function findPasswordHashById(id, query = defaultQuery) {
+  const result = await query('SELECT id, password_hash FROM users WHERE id = $1 LIMIT 1', [id]);
+  const row = result.rows[0];
+  return row ? { id: row.id, passwordHash: row.password_hash } : null;
+}
+
+/**
+ * Replaces a user's password hash and bumps token_version in the same statement, which signs
+ * the user out everywhere (every existing token stops matching).
+ *
+ * @param {string|number} id
+ * @param {string} passwordHash
+ * @param {Function} [query=defaultQuery]
+ * @returns {Promise<{ id: string|number, tokenVersion: number } | null>}
+ */
+export async function updatePasswordHash(id, passwordHash, query = defaultQuery) {
+  const result = await query(
+    `UPDATE users
+     SET password_hash = $2, token_version = token_version + 1, updated_at = now()
+     WHERE id = $1
+     RETURNING id, token_version`,
+    [id, passwordHash]
+  );
+  const row = result.rows[0];
+  return row ? { id: row.id, tokenVersion: Number(row.token_version) } : null;
+}
+
+/**
  * Repository factory allowing complete dependency injection of the query function.
  *
  * @param {Function} [query=defaultQuery]
@@ -125,6 +160,8 @@ export function createUserRepository(query = defaultQuery) {
     findByIdentifier: (identifier) => findByIdentifier(identifier, query),
     findById: (id) => findById(id, query),
     incrementTokenVersion: (id) => incrementTokenVersion(id, query),
+    findPasswordHashById: (id) => findPasswordHashById(id, query),
+    updatePasswordHash: (id, hash) => updatePasswordHash(id, hash, query),
   };
 }
 
@@ -133,5 +170,7 @@ export default {
   findByIdentifier,
   findById,
   incrementTokenVersion,
+  findPasswordHashById,
+  updatePasswordHash,
   createUserRepository,
 };

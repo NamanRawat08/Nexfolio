@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { friendlyAuthError, validateRegistration } from './authMessages.js';
+import { friendlyAuthError, validateRegistration, validatePasswordChange } from './authMessages.js';
 
 describe('validateRegistration', () => {
   const ok = { username: 'good_name', password: 'longenough1' };
@@ -53,5 +53,33 @@ describe('friendlyAuthError', () => {
     assert.equal(friendlyAuthError({ code: 'WEIRD', message: 'Custom text' }), 'Custom text');
     assert.match(friendlyAuthError({}), /something went wrong/i);
     assert.match(friendlyAuthError(undefined), /something went wrong/i);
+  });
+});
+
+describe('validatePasswordChange', () => {
+  const ok = { currentPassword: 'OldPassword1', newPassword: 'BrandNewPass2', confirmPassword: 'BrandNewPass2' };
+
+  it('accepts a valid change', () => {
+    assert.equal(validatePasswordChange(ok), '');
+  });
+
+  it('asks for the current password', () => {
+    assert.match(validatePasswordChange({ ...ok, currentPassword: '' }), /current password/i);
+  });
+
+  it('explains short and long new passwords', () => {
+    assert.match(validatePasswordChange({ ...ok, newPassword: 'short', confirmPassword: 'short' }), /too short/i);
+    const long = 'a'.repeat(73);
+    assert.match(validatePasswordChange({ ...ok, newPassword: long, confirmPassword: long }), /too long/i);
+  });
+
+  it('rejects an unchanged password and a mismatched confirmation', () => {
+    assert.match(validatePasswordChange({ ...ok, newPassword: 'OldPassword1', confirmPassword: 'OldPassword1' }), /different/i);
+    assert.match(validatePasswordChange({ ...ok, confirmPassword: 'Different3' }), /do not match/i);
+  });
+
+  it('maps the server\'s password-change error codes', () => {
+    assert.match(friendlyAuthError({ code: 'INVALID_CURRENT_PASSWORD' }), /current password is not correct/i);
+    assert.match(friendlyAuthError({ code: 'PASSWORD_UNCHANGED' }), /different/i);
   });
 });

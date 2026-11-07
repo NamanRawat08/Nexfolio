@@ -86,6 +86,7 @@ describe('auth.routes and rate limiting', () => {
       login: () => {},
       logout: () => {},
       me: () => {},
+      changePassword: () => {},
     };
     const fakeAuthMiddleware = () => {};
 
@@ -95,5 +96,19 @@ describe('auth.routes and rate limiting', () => {
     });
 
     assert.equal(typeof router, 'function');
+  });
+
+  it('exposes POST /change-password behind auth and a rate limiter', () => {
+    const auth = () => {};
+    const router = createAuthRouter({
+      controller: { register() {}, login() {}, logout() {}, me() {}, changePassword() {} },
+      authMiddleware: auth,
+    });
+    const route = router.stack.find((l) => l.route?.path === '/change-password')?.route;
+    assert.ok(route, 'route exists');
+    assert.deepEqual(Object.keys(route.methods), ['post']);
+    // auth middleware first, then the limiter, then the handler
+    assert.equal(route.stack.length, 3);
+    assert.equal(route.stack[0].handle, auth);
   });
 });
