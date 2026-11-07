@@ -110,7 +110,7 @@ export function InstrumentSearch({ autoFocus = false, className = '' }) {
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
-                      variant="outline"
+                      variant="buy-outline"
                       size="sm"
                       onClick={() => {
                         setOpen(false);

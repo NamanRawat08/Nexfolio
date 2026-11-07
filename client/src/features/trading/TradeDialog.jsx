@@ -284,7 +284,7 @@ export function TradeDialog({ open, side, onClose, initialSymbol }) {
 
             <Button
               type="submit"
-              variant="primary"
+              variant={isBuy ? 'buy' : 'sell'}
               size="lg"
               disabled={submitting || !selected}
               className="w-full"

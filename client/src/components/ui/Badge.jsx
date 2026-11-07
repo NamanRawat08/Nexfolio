@@ -4,7 +4,7 @@ import React from 'react';
  * Badge / Chip primitive.
  *
  * @param {object} props
- * @param {'accent' | 'gain' | 'loss' | 'neutral' | 'outline'} [props.variant]
+ * @param {'accent' | 'gain' | 'loss' | 'buy' | 'sell' | 'neutral' | 'outline'} [props.variant]
  * @param {string} [props.className]
  * @param {React.ReactNode} props.children
  */
@@ -18,6 +18,8 @@ export function Badge({
     accent: 'bg-accent/15 text-accent border border-accent/30',
     gain: 'bg-gain/15 text-gain border border-gain/30',
     loss: 'bg-loss/15 text-loss border border-loss/30',
+    buy: 'bg-buy/15 text-buy border border-buy/30',
+    sell: 'bg-sell/15 text-sell border border-sell/30',
     neutral: 'bg-surface-2 text-muted border border-line',
     outline: 'bg-transparent text-muted border border-line',
   }[variant] || 'bg-surface-2 text-muted border border-line';

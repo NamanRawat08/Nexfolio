@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
-import { Button } from '../../components/ui/Button.jsx';
 import { usePortfolio } from '../../context/PortfolioContext.jsx';
-import { TradeDialog } from '../trading/TradeDialog.jsx';
 import { formatCurrency, formatSignedCurrency, formatPercent } from '../../utils/format.js';
-import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 /**
  * Wallet cards displaying simulated liquidity, invested balance, and quick actions.
@@ -15,11 +13,10 @@ import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
  */
 export function WalletCards({ compact = false }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [tradeSide, setTradeSide] = useState(null);
   const { status, summary } = usePortfolio();
   const ready = status === 'ready' && summary !== null;
-  const dayPnl = ready ? summary.dayPnl : '0';
-  const isDayGain = !dayPnl.startsWith('-');
+  const unrealized = ready ? summary.unrealizedPnl : '0';
+  const isUnrealizedGain = !unrealized.startsWith('-');
 
   const cards = [
     {
@@ -29,7 +26,7 @@ export function WalletCards({ compact = false }) {
       amount: ready ? summary.availableCash : null,
       badge: 'SIM',
       gradient: 'from-surface-2 via-surface to-bg',
-      border: 'border-accent/30',
+      border: 'border-line',
       icon: Wallet,
       detail: 'Instant virtual buying power',
       note:
@@ -49,17 +46,16 @@ export function WalletCards({ compact = false }) {
       detail: 'Current market holding valuation',
     },
     {
-      id: 'day-pnl',
-      title: 'Day P&L',
-      subtitle: 'Latest session',
-      amount: ready ? summary.dayPnl : null,
-      percent: ready ? summary.dayPnlRatio : undefined,
-      isGain: isDayGain,
+      id: 'unrealized-pnl',
+      title: 'Unrealized P&L',
+      subtitle: 'Since you bought',
+      amount: ready ? summary.unrealizedPnl : null,
+      isGain: isUnrealizedGain,
       badge: 'SIM',
       gradient: 'from-surface to-bg',
-      border: 'border-gain/20',
-      icon: ArrowUpRight,
-      detail: 'Net day movement',
+      border: isUnrealizedGain ? 'border-gain/30' : 'border-loss/30',
+      icon: isUnrealizedGain ? ArrowUpRight : ArrowDownRight,
+      detail: 'Gain or loss on what you hold',
     },
   ];
 
@@ -73,13 +69,13 @@ export function WalletCards({ compact = false }) {
   };
 
   return (
-    <Card className="flex flex-col h-full justify-between">
+    <Card className="flex flex-col h-full">
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs uppercase font-semibold tracking-wider text-muted">
             Simulated Balances
           </h2>
-          <Badge variant="accent">Virtual Funds</Badge>
+          <Badge variant="outline">Virtual funds</Badge>
         </div>
 
         {compact ? (
@@ -112,7 +108,7 @@ export function WalletCards({ compact = false }) {
                         <span className="text-xs text-muted block">{c.subtitle}</span>
                         <span className="text-sm font-semibold text-fg">{c.title}</span>
                       </div>
-                      <Badge variant="outline" className="border-accent/40 text-accent">
+                      <Badge variant="outline">
                         {c.badge}
                       </Badge>
                     </div>
@@ -125,7 +121,7 @@ export function WalletCards({ compact = false }) {
                             : formatCurrency(c.amount)}
                       </div>
                       <div className="text-[11px] text-muted flex items-center gap-1.5">
-                        <Icon className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
+                        <Icon className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
                         {c.percent !== undefined ? (
                           <>
                             <span
@@ -156,7 +152,7 @@ export function WalletCards({ compact = false }) {
                 <span
                   key={c.id}
                   className={`h-1.5 rounded-full transition-all duration-200 ${
-                    activeIndex === idx ? 'w-4 bg-accent' : 'w-1.5 bg-line'
+                    activeIndex === idx ? 'w-4 bg-muted' : 'w-1.5 bg-line'
                   }`}
                 />
               ))}
@@ -178,12 +174,12 @@ export function WalletCards({ compact = false }) {
                 <div
                   key={c.id}
                   style={{ transform: `translateY(${index * 1}px)` }}
-                  className={`p-3.5 rounded-xl border bg-linear-to-br ${c.gradient} ${c.border} transition-all hover:border-accent/40 shadow-sm`}
+                  className={`p-3.5 rounded-xl border bg-linear-to-br ${c.gradient} ${c.border} transition-all hover:border-muted shadow-sm`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
+                        <Icon className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
                         <span className="text-xs text-muted font-medium">{c.title}</span>
                       </div>
                       <div className={`text-lg font-bold tabular-nums mt-0.5 ${colorClass}`}>
@@ -196,7 +192,7 @@ export function WalletCards({ compact = false }) {
                       {c.note && <div className="mt-0.5 text-[11px] text-muted">{c.note}</div>}
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge variant="outline" className="border-accent/40 text-accent">
+                      <Badge variant="outline">
                         {c.badge}
                       </Badge>
                       {c.percent !== undefined && (
@@ -217,41 +213,6 @@ export function WalletCards({ compact = false }) {
         )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="pt-4 mt-3 border-t border-line/60">
-        <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-2">
-          Quick Actions (Simulated)
-        </span>
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="primary"
-            size="md"
-            disabled={!ready}
-            onClick={() => setTradeSide('BUY')}
-            className="w-full flex items-center gap-1.5"
-          >
-            <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
-            <span>Buy</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="md"
-            disabled={!ready}
-            onClick={() => setTradeSide('SELL')}
-            className="w-full flex items-center gap-1.5"
-          >
-            <ArrowDownLeft className="w-4 h-4" aria-hidden="true" />
-            <span>Sell</span>
-          </Button>
-        </div>
-      </div>
-
-      <TradeDialog
-        open={tradeSide !== null}
-        side={tradeSide ?? 'BUY'}
-        onClose={() => setTradeSide(null)}
-      />
     </Card>
   );
 }

@@ -64,7 +64,7 @@ function AllocationCard() {
                   className="h-2 overflow-hidden rounded-full bg-surface-2"
                 >
                   <div
-                    className={`h-full rounded-full ${slice.kind === 'cash' ? 'bg-muted' : 'bg-accent'}`}
+                    className={`h-full rounded-full ${slice.kind === 'cash' ? 'bg-muted' : 'bg-info'}`}
                     style={{ width: percent }}
                   />
                 </div>

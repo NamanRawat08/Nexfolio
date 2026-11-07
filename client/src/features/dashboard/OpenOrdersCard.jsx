@@ -67,7 +67,7 @@ export function OpenOrdersCard() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-fg">{order.symbol}</span>
-                    <Badge variant={isBuy ? 'gain' : 'loss'}>{order.side}</Badge>
+                    <Badge variant={isBuy ? 'buy' : 'sell'}>{order.side}</Badge>
                   </div>
                   <div className="text-xs text-muted">
                     {order.quantity} {order.quantity === '1' ? 'share' : 'shares'} at{' '}

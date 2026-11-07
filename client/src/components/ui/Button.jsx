@@ -3,7 +3,7 @@ import React from 'react';
 /**
  * Reusable Button primitive.
  * @param {object} props
- * @param {'primary' | 'secondary' | 'outline' | 'ghost'} [props.variant]
+ * @param {'primary' | 'secondary' | 'outline' | 'ghost' | 'buy' | 'sell' | 'buy-outline' | 'sell-outline'} [props.variant]
  * @param {'sm' | 'md' | 'lg' | 'icon'} [props.size]
  * @param {string} [props.className]
  * @param {boolean} [props.disabled]
@@ -30,6 +30,14 @@ export function Button({
       'bg-transparent text-fg hover:bg-surface-2 border border-line disabled:opacity-40',
     ghost:
       'bg-transparent text-muted hover:text-fg hover:bg-surface-2 disabled:opacity-40',
+    buy:
+      'bg-buy text-buy-fg hover:bg-buy-hover font-semibold shadow-sm disabled:opacity-50 disabled:hover:bg-buy',
+    sell:
+      'bg-sell text-sell-fg hover:bg-sell-hover font-semibold shadow-sm disabled:opacity-50 disabled:hover:bg-sell',
+    'buy-outline':
+      'bg-transparent text-buy border border-buy/50 hover:bg-buy/10 font-semibold disabled:opacity-40',
+    'sell-outline':
+      'bg-transparent text-sell border border-sell/50 hover:bg-sell/10 font-semibold disabled:opacity-40',
   }[variant] || '';
 
   const sizeClasses = {

@@ -152,20 +152,10 @@ export function DesktopLayout() {
           {/* Right Header Controls */}
           <div className="flex items-center gap-3">
             {/* Persistent Simulated Data Badge */}
-            <Badge variant="accent" className="inline-flex items-center gap-1">
+            <Badge variant="outline" className="inline-flex items-center gap-1">
               <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Simulated data</span>
             </Badge>
-
-            {/* Workspace Switcher Pill (Visual Placeholder) */}
-            {/* TODO(feature): wire up workspace switcher */}
-            <div
-              title="Workspace switching not available yet"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-2 border border-line text-xs font-semibold text-fg select-none"
-            >
-              <span className="w-2 h-2 rounded-full bg-accent" aria-hidden="true" />
-              <span>Simulation</span>
-            </div>
 
             <NotificationBell />
 
