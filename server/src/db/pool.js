@@ -41,6 +41,34 @@ export async function query(text, params) {
 }
 
 /**
+ * Runs fn inside a single transaction on one pooled connection.
+ * fn receives a query(text, params) bound to that connection; the transaction
+ * commits when fn resolves and rolls back (then rethrows) when it throws.
+ *
+ * @template T
+ * @param {(query: (text: string, params?: any[]) => Promise<import('pg').QueryResult>) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withTransaction(fn) {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn((text, params) => client.query(text, params));
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('[DB] Rollback failed:', rollbackErr && rollbackErr.message);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Gracefully terminates the connection pool if created, resetting pool reference to null.
  * Safe to call multiple times and safe when no pool was initialized.
  *
@@ -57,5 +85,6 @@ export async function closePool() {
 export default {
   getPool,
   query,
+  withTransaction,
   closePool,
 };

@@ -3,6 +3,8 @@ import healthRoutes from './health.routes.js';
 import { createAuthRouter } from './auth.routes.js';
 import { createInstrumentRouter } from './instrument.routes.js';
 import { createWalletRouter } from './wallet.routes.js';
+import { createOrderRouter } from './order.routes.js';
+import { createHoldingRouter } from './holding.routes.js';
 import { createAuthController } from '../controllers/auth.controller.js';
 import { createAuthMiddleware } from '../middleware/auth.middleware.js';
 import { createAuthService } from '../services/auth.service.js';
@@ -12,8 +14,13 @@ import { createInstrumentController } from '../controllers/instrument.controller
 import { createInstrumentRepository } from '../repositories/instrument.repository.js';
 import { createWalletController } from '../controllers/wallet.controller.js';
 import { createWalletRepository } from '../repositories/wallet.repository.js';
+import { createOrderController } from '../controllers/order.controller.js';
+import { createHoldingController } from '../controllers/holding.controller.js';
+import { createOrderRepository } from '../repositories/order.repository.js';
+import { createHoldingRepository } from '../repositories/holding.repository.js';
+import { createOrderService } from '../services/order.service.js';
 import { createUserRepository } from '../repositories/user.repository.js';
-import { query as poolQuery } from '../db/pool.js';
+import { query as poolQuery, withTransaction as poolWithTransaction } from '../db/pool.js';
 import { getConfig } from '../config/index.js';
 
 /**
@@ -26,7 +33,12 @@ import { getConfig } from '../config/index.js';
  * @param {object} [options.limiterOptions]
  * @returns {import('express').Router}
  */
-export function createApiRouter({ config, query = poolQuery, limiterOptions } = {}) {
+export function createApiRouter({
+  config,
+  query = poolQuery,
+  withTransaction = poolWithTransaction,
+  limiterOptions,
+} = {}) {
   const currentConfig = config ?? getConfig();
   const apiRouter = Router();
 
@@ -70,6 +82,25 @@ export function createApiRouter({ config, query = poolQuery, limiterOptions } = 
   const walletRepo = createWalletRepository(query);
   const walletController = createWalletController({ walletRepo });
   apiRouter.use('/wallet', createWalletRouter({ controller: walletController, authMiddleware }));
+
+  // Trading composition: orders (atomic buy/sell) and holdings
+  const orderService = createOrderService({
+    withTransaction,
+    createRepos: (txQuery) => ({
+      wallet: createWalletRepository(txQuery),
+      holding: createHoldingRepository(txQuery),
+      order: createOrderRepository(txQuery),
+      instrument: createInstrumentRepository(txQuery),
+    }),
+  });
+  const orderController = createOrderController({
+    orderService,
+    orderRepo: createOrderRepository(query),
+  });
+  apiRouter.use('/orders', createOrderRouter({ controller: orderController, authMiddleware }));
+
+  const holdingController = createHoldingController({ holdingRepo: createHoldingRepository(query) });
+  apiRouter.use('/holdings', createHoldingRouter({ controller: holdingController, authMiddleware }));
 
   return apiRouter;
 }

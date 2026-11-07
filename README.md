@@ -177,6 +177,7 @@ Migrations live in `server/migrations/`:
 - `0002_create_instruments_table`: Creates `instruments` table with `id`, `symbol`, `name`, `sector`, and `created_at` columns, symbol/name check constraints, and a unique expression index on `upper(symbol)`.
 - `0003_create_price_history_table`: Creates `price_history` table with composite primary key `(instrument_id, trade_date)` and foreign key referencing `instruments(id) ON DELETE CASCADE`, tracking daily `close_price` (`NUMERIC(12,2) > 0`).
 - `0004_create_wallets_table`: Creates `wallets` (one row per user, `cash_paise BIGINT >= 0`, cascade delete). A trigger on `users` gives every new user a wallet with 1,00,00,000 paise (₹10,00,000) in the same transaction as the user insert; existing users are backfilled.
+- `0005_create_holdings_and_orders_tables`: Creates `holdings` (one row per user and instrument while quantity > 0, with `quantity` and `total_cost_paise`) and `orders` (immutable log of `BUY`/`SELL` fills with `quantity`, `price_paise`, `total_paise` and `realized_pnl_paise` on sells). All amounts are integer paise.
 
 ### 6. Seed Market Data
 To populate the database with initial instruments and deterministic historical closing prices:
@@ -202,6 +203,15 @@ cd server && npm run seed
 | GET | `/api/instruments/:symbol` | Single instrument (case-insensitive symbol). Requires auth. Returns `200 { instrument }`, `400 INVALID_SYMBOL`, or `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/wallet` | Signed-in user's simulated cash. Requires auth. Returns `200 { wallet: { cashPaise, cash, currency } }` (`cashPaise` is an integer string, `cash` is rupees with 2 decimals, currency `INR`). New users start with ₹10,00,000. |
+| POST | `/api/orders` | Place a simulated **market** order that fills immediately at the instrument's latest close. Requires auth. Body: `{ symbol, side: "BUY"\|"SELL", quantity }` (`quantity` a whole number, 1–1,000,000). Returns `201 { order, wallet }`. Errors: `400 VALIDATION_ERROR`, `404 INSTRUMENT_NOT_FOUND`, `409 NO_PRICE_AVAILABLE`, `422 INSUFFICIENT_FUNDS`, `422 INSUFFICIENT_HOLDINGS`. |
+| GET | `/api/orders` | The signed-in user's orders, newest first. Requires auth. Query: `limit` (1–100, default 50), `offset`. Returns `200 { orders }` with amounts in paise and rupees; `realizedPnl*` is set on sells only. |
+| GET | `/api/holdings` | Current positions with quantity, average cost, last price, value and unrealized P&L. Requires auth. Returns `200 { holdings }`. |
+
+### Trading Rules
+- Orders are simulated market orders only (no limit orders yet) and fill instantly at the latest close in `price_history`.
+- Each order runs in one database transaction that first locks the user's wallet row, so a user's orders apply one at a time. Cash, holdings and the order log always change together, and concurrent orders cannot overspend.
+- Cost basis is tracked per position. A sell removes cost pro rata (rounded down) and records realized P&L; selling the whole position uses the exact remaining cost.
+- Shares are whole numbers and money is integer paise (BigInt in code); there is no short selling and no margin.
 
 ### Authentication & Cookie Behavior
 
