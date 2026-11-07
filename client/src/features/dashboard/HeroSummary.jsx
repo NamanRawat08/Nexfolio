@@ -32,7 +32,7 @@ export function HeroSummary() {
           </>
         ) : (
           <>
-            <div className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums text-fg sm:text-5xl">
+            <div className="mt-1 font-display lining-nums text-4xl font-semibold tracking-tight tabular-nums text-fg sm:text-5xl">
               {formatCurrency(summary.totalValue)}
             </div>
             <div

@@ -29,4 +29,4 @@ export function resolveTheme(preference, systemPrefersLight) {
 }
 
 /** Browser chrome colors that match each theme (used for <meta name="theme-color">). */
-export const THEME_COLORS = Object.freeze({ dark: '#0b0807', light: '#f4efe7' });
+export const THEME_COLORS = Object.freeze({ dark: '#0a0e17', light: '#f5f2ec' });

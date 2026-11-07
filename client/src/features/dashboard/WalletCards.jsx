@@ -113,7 +113,7 @@ export function WalletCards({ compact = false }) {
                       </Badge>
                     </div>
                     <div>
-                      <div className={`text-xl font-bold tabular-nums mb-1 ${colorClass}`}>
+                      <div className={`font-display lining-nums text-2xl font-semibold tabular-nums mb-1 ${colorClass}`}>
                         {c.amount === null
                           ? '—'
                           : isSigned
@@ -182,7 +182,7 @@ export function WalletCards({ compact = false }) {
                         <Icon className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
                         <span className="text-xs text-muted font-medium">{c.title}</span>
                       </div>
-                      <div className={`text-lg font-bold tabular-nums mt-0.5 ${colorClass}`}>
+                      <div className={`font-display lining-nums text-xl font-semibold tabular-nums mt-0.5 ${colorClass}`}>
                         {c.amount === null
                           ? '—'
                           : isSigned

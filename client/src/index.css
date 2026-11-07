@@ -4,77 +4,83 @@
  * Nexfolio design tokens — single source of truth.
  * Tailwind v4 @theme block generates utilities like bg-bg, text-fg, bg-buy, etc.
  *
+ * Palette: "Midnight and champagne". Deep ink navy surfaces with a pale, desaturated gold accent.
+ *
  * Colour roles (kept deliberately separate):
- *   accent  — brand and primary actions only (logo, active navigation, main buttons, focus)
- *   gain / loss — money going up or down (P&L, charts)
- *   buy / sell  — the trading actions (Buy is blue, Sell is red) so actions never read as P&L
+ *   accent  — brand and primary actions only (logo, active navigation, main buttons, focus);
+ *             champagne in the dark theme, deep navy in the light theme
+ *   gain / loss — money going up or down (P&L, charts): mint and soft coral
+ *   buy / sell  — the trading actions (Buy is blue, Sell is coral) so actions never read as P&L
  *   info    — neutral data series (invested, allocation)
  *
  * Dark theme. WCAG AA verified: all text pairs (fg, muted, accent, gain, loss, buy on
- * bg, surface and surface-2) are >= 4.5:1; button text on accent/buy/sell is >= 7.5:1.
- * Cards are lifted off the page (surface/bg = 1.19:1) with a visible border (line/surface = 1.6:1).
+ * bg, surface and surface-2) are >= 4.5:1; button text on accent/buy/sell is >= 7.2:1.
+ * Cards are lifted off the page and given a visible border (line/surface = 1.55:1).
  */
 @theme {
   /* Backgrounds */
-  --color-bg: #0b0807;
-  --color-surface: #241c16;
-  --color-surface-2: #33281f;
+  --color-bg: #0a0e17;
+  --color-surface: #161e31;
+  --color-surface-2: #1e2840;
 
   /* Borders */
-  --color-line: #4d3c30;
+  --color-line: #2f3b58;
 
   /* Text */
-  --color-fg: #fbf7f2;
-  --color-muted: #bdae9f;
+  --color-fg: #f1ede4;
+  --color-muted: #a3acbe;
 
-  /* Accent — amber/bronze-gold (brand and primary actions) */
-  --color-accent: #e2a548;
-  --color-accent-hover: #edb862;
-  --color-accent-fg: #1a1109;
+  /* Accent — champagne (brand and primary actions) */
+  --color-accent: #d4c3a1;
+  --color-accent-hover: #e3d4b6;
+  --color-accent-fg: #1a1610;
 
   /* Semantic — financial */
-  --color-gain: #3fd99b;
-  --color-loss: #ff7d6d;
+  --color-gain: #5fcfa8;
+  --color-loss: #ef8279;
 
   /* Trading actions */
-  --color-buy: #6db0ff;
-  --color-buy-hover: #8cc2ff;
-  --color-buy-fg: #06101f;
-  --color-sell: #ff7d6d;
-  --color-sell-hover: #ff9487;
+  --color-buy: #8fb4ff;
+  --color-buy-hover: #aac5ff;
+  --color-buy-fg: #0a1226;
+  --color-sell: #ef8279;
+  --color-sell-hover: #f39a92;
   --color-sell-fg: #240a07;
 
   /* Neutral data series */
-  --color-info: #6db0ff;
+  --color-info: #8fb4ff;
 
   /* Font family — system stack, no external fonts */
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Display — elegant system serif for headline figures (no font download) */
+  --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 /*
  * Light theme — overrides the same tokens when <html data-theme="light"> (see ThemeContext).
- * WCAG AA verified: all text pairs >= 4.5:1 (lowest: accent/surface-2 and gain/surface-2);
- * button text on accent/buy/sell is >= 6.1:1.
+ * Warm ivory page, white cards, deep navy accent. WCAG AA verified: all text pairs >= 4.5:1;
+ * button text on accent/buy/sell is >= 6.0:1.
  */
 :root[data-theme="light"] {
-  --color-bg: #f4efe7;
+  --color-bg: #f5f2ec;
   --color-surface: #ffffff;
-  --color-surface-2: #ece3d6;
-  --color-line: #cfc1ae;
-  --color-fg: #1c1511;
-  --color-muted: #5a4d43;
-  --color-accent: #8f5305;
-  --color-accent-hover: #764304;
+  --color-surface-2: #ebe7de;
+  --color-line: #d3ccbd;
+  --color-fg: #141a2a;
+  --color-muted: #505a72;
+  --color-accent: #1f3461;
+  --color-accent-hover: #172750;
   --color-accent-fg: #ffffff;
   --color-gain: #046a4c;
   --color-loss: #b42318;
-  --color-buy: #1d5fb8;
-  --color-buy-hover: #164d99;
+  --color-buy: #1f5fc4;
+  --color-buy-hover: #194da0;
   --color-buy-fg: #ffffff;
   --color-sell: #b42318;
   --color-sell-hover: #911c13;
   --color-sell-fg: #ffffff;
-  --color-info: #1d5fb8;
+  --color-info: #1f5fc4;
 }
 
 /* Native controls (form fields, scrollbars) follow the theme */

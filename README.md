@@ -112,12 +112,12 @@ The navigation items are real pages, chosen by the URL hash (`#dashboard`, `#por
 The theme is applied by `ThemeContext` as `<html data-theme>`; `index.css` overrides the same design tokens for light, so no component has theme-specific code. The choice is saved in `localStorage` and a small script in `index.html` applies it before the app loads (no flash). The header button toggles light and dark; Settings also offers "Match my device". Both palettes keep WCAG AA text contrast (see the notes in `index.css`).
 
 **Colour roles** are kept separate so a colour always means one thing:
-- **accent** (amber): brand and primary actions only: the logo, the active navigation item, main buttons and focus rings.
-- **gain / loss** (green / red): money going up or down: P&L figures and the portfolio chart, whose line and fill turn green or red with the period's result.
-- **buy / sell** (blue / red): the trading actions and the BUY / SELL badges, so an action never reads as a profit or loss.
+- **accent** (pale champagne gold in the dark theme, deep navy in the light theme): brand and primary actions only: the logo, the active navigation item, main buttons and focus rings.
+- **gain / loss** (mint / soft coral): money going up or down: P&L figures and the portfolio chart, whose line and fill turn green or red with the period's result.
+- **buy / sell** (blue / coral): the trading actions and the BUY / SELL badges, so an action never reads as a profit or loss.
 - **info** (blue): neutral data series such as invested value and allocation bars.
 
-Cards are lifted off the page and given a visible border so sections read as separate blocks. The dashboard starts with a hero card (total portfolio value, change versus the previous close, and the Buy and Sell buttons); the chart shows the change over the selected period.
+The palette is "Midnight and champagne": deep ink-navy surfaces with a pale, desaturated gold accent (dark theme) on a warm ivory page with a navy accent (light theme). Headline figures (total value, stat and balance cards) use an elegant system serif (`font-display`, no font download); everything else stays in the system sans-serif. Cards are lifted off the page and given a visible border so sections read as separate blocks. The dashboard starts with a hero card (total portfolio value, change versus the previous close, and the Buy and Sell buttons); the chart shows the change over the selected period.
 
 ### Notifications
 The bell in the header shows an unread badge and a dropdown with your notifications. Today the only kind is **Limit order filled**, created by the order matcher in the same transaction that fills the order (so you never get one without the other, and re-running the matcher never duplicates it). The client refreshes the count on load, every minute and when the window regains focus; "Mark all as read" clears the badge. Amounts in notification text use Indian digit grouping (₹1,00,000.00).
