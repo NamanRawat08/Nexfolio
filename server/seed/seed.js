@@ -1,6 +1,8 @@
 import { getPool, closePool } from '../src/db/pool.js';
 import { instrumentsData } from './instruments.data.js';
-import { generateHistory, formatPaiseToRupees } from './priceGenerator.js';
+import { generateHistory, daysInclusive, MARKET_START_DATE } from './priceGenerator.js';
+import { insertPriceRows } from './priceRows.js';
+import { todayUtc } from './advance.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Seed script cannot run in production');
@@ -35,13 +37,10 @@ export async function runSeed() {
     const idRes = await client.query('SELECT id, upper(symbol) AS symbol FROM instruments');
     const symbolToId = new Map(idRes.rows.map((r) => [r.symbol, r.id]));
 
-    // 3. Generate price history and insert in batches
-    let priceHistoryInserted = 0;
-    const BATCH_SIZE = 500;
-    let batchValues = [];
-    let batchParams = [];
-    let paramIndex = 1;
-
+    // 3. Generate price history from MARKET_START_DATE through today and insert in batches
+    const endDate = todayUtc();
+    const days = daysInclusive(MARKET_START_DATE, endDate);
+    const rows = [];
     for (const inst of instrumentsData) {
       const instrumentId = symbolToId.get(inst.symbol.toUpperCase());
       if (!instrumentId) continue;
@@ -49,38 +48,14 @@ export async function runSeed() {
       const history = generateHistory({
         basePricePaise: inst.basePricePaise,
         seed: inst.symbol,
+        days,
+        endDate,
       });
-
       for (const point of history) {
-        const closePriceStr = formatPaiseToRupees(point.closePaise);
-        batchValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`);
-        batchParams.push(instrumentId, point.date, closePriceStr);
-        paramIndex += 3;
-
-        if (batchValues.length >= BATCH_SIZE) {
-          const insertQuery = `
-            INSERT INTO price_history (instrument_id, trade_date, close_price)
-            VALUES ${batchValues.join(', ')}
-            ON CONFLICT (instrument_id, trade_date) DO NOTHING
-          `;
-          const bRes = await client.query(insertQuery, batchParams);
-          priceHistoryInserted += bRes.rowCount;
-          batchValues = [];
-          batchParams = [];
-          paramIndex = 1;
-        }
+        rows.push({ instrumentId, date: point.date, closePaise: point.closePaise });
       }
     }
-
-    if (batchValues.length > 0) {
-      const insertQuery = `
-        INSERT INTO price_history (instrument_id, trade_date, close_price)
-        VALUES ${batchValues.join(', ')}
-        ON CONFLICT (instrument_id, trade_date) DO NOTHING
-      `;
-      const bRes = await client.query(insertQuery, batchParams);
-      priceHistoryInserted += bRes.rowCount;
-    }
+    const priceHistoryInserted = await insertPriceRows((text, params) => client.query(text, params), rows);
 
     await client.query('COMMIT');
     console.log(`Seeded ${instrumentsInserted} new instruments and ${priceHistoryInserted} price history records.`);

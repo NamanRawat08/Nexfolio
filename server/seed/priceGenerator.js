@@ -49,6 +49,25 @@ export function formatPaiseToRupees(paise) {
 const MS_PER_DAY = 86400000;
 
 /**
+ * First day of every instrument's simulated price series. All series are random walks
+ * from this date, so extending the end date never changes earlier prices.
+ */
+export const MARKET_START_DATE = '2025-10-26';
+
+/**
+ * Number of calendar days from startDate to endDate, inclusive.
+ *
+ * @param {string} startDate - 'YYYY-MM-DD'
+ * @param {string} endDate - 'YYYY-MM-DD'
+ * @returns {number}
+ */
+export function daysInclusive(startDate, endDate) {
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / MS_PER_DAY) + 1;
+}
+
+/**
  * Generates a deterministic price history for an instrument over consecutive calendar days.
  *
  * @param {object} params
@@ -102,6 +121,8 @@ export function generateHistory({
 }
 
 export default {
+  MARKET_START_DATE,
+  daysInclusive,
   createMulberry32,
   seedFromString,
   formatPaiseToRupees,
