@@ -4,6 +4,7 @@ import { DesktopLayout } from './layouts/DesktopLayout.jsx';
 import { MobileLayout } from './layouts/MobileLayout.jsx';
 import { AuthPage } from './features/auth/AuthPage.jsx';
 import { PortfolioProvider } from './context/PortfolioContext.jsx';
+import { WatchlistProvider } from './context/WatchlistContext.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 /**
@@ -28,7 +29,9 @@ function App() {
 
   return (
     <PortfolioProvider>
-      {isDesktop ? <DesktopLayout /> : <MobileLayout />}
+      <WatchlistProvider>
+        {isDesktop ? <DesktopLayout /> : <MobileLayout />}
+      </WatchlistProvider>
     </PortfolioProvider>
   );
 }

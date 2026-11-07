@@ -6,6 +6,7 @@ import { createWalletRouter } from './wallet.routes.js';
 import { createOrderRouter } from './order.routes.js';
 import { createHoldingRouter } from './holding.routes.js';
 import { createPortfolioRouter } from './portfolio.routes.js';
+import { createWatchlistRouter } from './watchlist.routes.js';
 import { createAuthController } from '../controllers/auth.controller.js';
 import { createAuthMiddleware } from '../middleware/auth.middleware.js';
 import { createAuthService } from '../services/auth.service.js';
@@ -18,6 +19,8 @@ import { createWalletRepository } from '../repositories/wallet.repository.js';
 import { createOrderController } from '../controllers/order.controller.js';
 import { createHoldingController } from '../controllers/holding.controller.js';
 import { createPortfolioController } from '../controllers/portfolio.controller.js';
+import { createWatchlistController } from '../controllers/watchlist.controller.js';
+import { createWatchlistRepository } from '../repositories/watchlist.repository.js';
 import { createOrderRepository } from '../repositories/order.repository.js';
 import { createHoldingRepository } from '../repositories/holding.repository.js';
 import { createOrderService } from '../services/order.service.js';
@@ -117,6 +120,15 @@ export function createApiRouter({
   apiRouter.use(
     '/portfolio',
     createPortfolioRouter({ controller: portfolioController, authMiddleware })
+  );
+
+  const watchlistController = createWatchlistController({
+    watchlistRepo: createWatchlistRepository(query),
+    instrumentRepo,
+  });
+  apiRouter.use(
+    '/watchlist',
+    createWatchlistRouter({ controller: watchlistController, authMiddleware })
   );
 
   return apiRouter;

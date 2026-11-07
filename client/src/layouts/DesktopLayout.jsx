@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  Search,
   Bell,
   Sun,
   ShieldAlert,
@@ -15,6 +14,8 @@ import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
 import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
+import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
+import { WatchlistCard } from '../features/dashboard/WatchlistCard.jsx';
 import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -161,24 +162,9 @@ export function DesktopLayout() {
       >
         {/* Top Header */}
         <header className="h-16 sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-line px-6 flex items-center justify-between gap-4">
-          {/* Global Search Input (Visual Placeholder) */}
+          {/* Global instrument search */}
           <div className="flex-1 max-w-md">
-            {/* TODO(feature): wire up global instrument search */}
-            <div className="relative">
-              <Search
-                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-                aria-hidden="true"
-              />
-              <input
-                type="text"
-                disabled
-                aria-disabled="true"
-                aria-label="Search instruments"
-                title="Search not available yet"
-                placeholder="Search instruments (e.g. RELIANCE, TCS)"
-                className="w-full bg-surface-2/80 text-fg text-sm pl-9 pr-4 py-2 rounded-lg border border-line focus:outline-none placeholder:text-muted/60 disabled:cursor-not-allowed disabled:opacity-60 cursor-not-allowed"
-              />
-            </div>
+            <InstrumentSearch />
           </div>
 
           {/* Right Header Controls */}
@@ -271,8 +257,15 @@ export function DesktopLayout() {
             </div>
           </div>
 
-          {/* Row 3: Holdings (full width) */}
-          <HoldingsCard />
+          {/* Row 3: Holdings (7 cols) + Watchlist (5 cols) */}
+          <div className="grid grid-cols-12 gap-6 items-stretch">
+            <div className="col-span-7 flex flex-col">
+              <HoldingsCard />
+            </div>
+            <div className="col-span-5 flex flex-col">
+              <WatchlistCard />
+            </div>
+          </div>
         </main>
       </div>
     </div>

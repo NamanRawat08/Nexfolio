@@ -101,13 +101,16 @@ Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings
 #### How portfolio history is computed
 The server replays the user's orders over the market calendar (the last 366 trading dates in `price_history`): value on a date = cash + Σ shares × that day's close. Starting cash is reconstructed from the current balance and the order log. If prices have not been advanced to the day an order was placed (see `npm run market:advance`), that order is applied on the last price date; the final point therefore always equals the current portfolio value. History is flat until prices move after you trade, and an order's own fill price is its price at the time, so the day of a trade can show a small step if the market moved since the last close. Monthly `invested` is the value of holdings at month end and `returns` is the change in total value over the month (there are no deposits or withdrawals).
 
+### Search and Watchlist
+The header search (desktop) and the search button (mobile, opens a bar under the header) call `GET /api/instruments?search=` after a 250 ms pause and match on symbol or company name. Each result has a **Buy** button (opens the trade dialog with that instrument preselected) and a star that adds or removes it from the watchlist. The Watchlist card on the dashboard lists saved instruments with the latest price and day change, plus Buy and star buttons. State lives in `WatchlistProvider`/`useWatchlist` (`client/src/context/WatchlistContext.jsx`).
+
 ### Authentication in the Client
 Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Form problems are explained in plain language (for example "Your password is too short. Please use at least 8 characters.") by `features/auth/authMessages.js`, which checks the registration form before it is sent and rewrites the server's technical validation messages. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token.
 
 ### Visual Placeholders & Disabled Controls
 The following controls are intentional visual placeholders awaiting future backend and engine integration:
 1. **Sidebar / Bottom Navigation Tabs**: `Portfolio`, `Orders`, `Watchlist`, `Settings` (styled with `aria-disabled="true"` and inactive indicators).
-2. **Search Inputs**: Desktop search input and mobile search button (both `disabled`). Instruments are picked from a list inside the Buy/Sell dialog instead.
+2. **Search Inputs**: now live (see Search and Watchlist).
 3. **Notifications**: Bell notification button in header (`disabled`).
 4. **Theme Toggle**: Light theme toggle button in desktop header (`disabled`).
 5. **Quick Actions**: now live. "Buy" and "Sell" open the trade dialog (disabled only while portfolio data is loading).
@@ -174,6 +177,7 @@ Migrations live in `server/migrations/`:
 - `0003_create_price_history_table`: Creates `price_history` table with composite primary key `(instrument_id, trade_date)` and foreign key referencing `instruments(id) ON DELETE CASCADE`, tracking daily `close_price` (`NUMERIC(12,2) > 0`).
 - `0004_create_wallets_table`: Creates `wallets` (one row per user, `cash_paise BIGINT >= 0`, cascade delete). A trigger on `users` gives every new user a wallet with 1,00,00,000 paise (₹10,00,000) in the same transaction as the user insert; existing users are backfilled.
 - `0005_create_holdings_and_orders_tables`: Creates `holdings` (one row per user and instrument while quantity > 0, with `quantity` and `total_cost_paise`) and `orders` (immutable log of `BUY`/`SELL` fills with `quantity`, `price_paise`, `total_paise` and `realized_pnl_paise` on sells). All amounts are integer paise.
+- `0006_create_watchlist_items_table`: Creates `watchlist_items` with primary key `(user_id, instrument_id)` (an instrument appears once per user), cascade deletes, and an index for newest-first listing.
 
 ### 6. Seed Market Data
 To populate the database with initial instruments and deterministic historical closing prices:
@@ -209,6 +213,9 @@ cd server && npm run market:advance
 | GET | `/api/instruments/:symbol` | Single instrument (case-insensitive symbol). Requires auth. Returns `200 { instrument }`, `400 INVALID_SYMBOL`, or `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/wallet` | Signed-in user's simulated cash. Requires auth. Returns `200 { wallet: { cashPaise, cash, currency } }` (`cashPaise` is an integer string, `cash` is rupees with 2 decimals, currency `INR`). New users start with ₹10,00,000. |
+| GET | `/api/watchlist` | The signed-in user's watched instruments, newest first, with latest and previous close, `change` (rupees) and `changePercent` (decimal ratio). Requires auth. Returns `200 { watchlist }`. |
+| PUT | `/api/watchlist/:symbol` | Add an instrument (case-insensitive symbol). Requires auth. Safe to repeat: `201` when added, `200` if already watched. Errors: `400 INVALID_SYMBOL`, `404 INSTRUMENT_NOT_FOUND`, `409 WATCHLIST_FULL` (limit 50). |
+| DELETE | `/api/watchlist/:symbol` | Remove an instrument. Requires auth. Returns `204`, also when it was not on the list. |
 | GET | `/api/portfolio/summary` | Cash, invested value (latest close), cost basis, total value, unrealized P&L and day P&L (latest close vs the one before). Requires auth. Amounts in paise and rupees; `dayPnlRatio` is a decimal ratio for display. Returns `200 { summary }`. |
 | GET | `/api/portfolio/history` | Portfolio value over time. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `6M`). Returns `200 { history: { rangeLabel, startValue, currentValue, changeAmount, changePercent, startDate, endDate, points: [{ date, value }] } }`; `400 INVALID_RANGE` on a bad range. |
 | GET | `/api/portfolio/performance` | Last 12 months: `invested` (holdings value at month end) and `returns` (change in total value). Requires auth. Returns `200 { performance: { asOf, months: [{ month, invested, returns }] } }`. |
@@ -243,5 +250,5 @@ cd server && npm run market:advance
 ## Status & Scope Boundaries
 
 Current status: a working paper-trading simulator. Users register, sign in, receive ₹10,00,000 of simulated cash, buy and sell seeded Indian equities at the latest close, and see live balances, holdings, orders and portfolio history on the dashboard.
-- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market orders, holdings, portfolio summary/history/performance endpoints, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog and Recharts visualizations driven by live data.
-- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, limit orders and order matching, short selling and margin, watchlist, search, notifications, a light theme, an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).
+- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders, watchlist), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market orders, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog, instrument search, a watchlist card and Recharts visualizations driven by live data.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, limit orders and order matching, short selling and margin, notifications, a light theme, an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).

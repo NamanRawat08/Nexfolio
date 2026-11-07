@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Bell, ShieldAlert, LogOut } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
@@ -6,6 +6,8 @@ import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
 import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
+import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
+import { WatchlistCard } from '../features/dashboard/WatchlistCard.jsx';
 import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -14,6 +16,7 @@ import { NAV_ITEMS } from '../config/navItems.js';
 
 export function MobileLayout() {
   const { user, logout } = useAuth();
+  const [searchOpen, setSearchOpen] = useState(false);
   return (
     <div className="min-h-[100dvh] bg-bg text-fg flex flex-col overflow-x-hidden">
       {/* Sticky Compact Top Header */}
@@ -33,15 +36,13 @@ export function MobileLayout() {
 
         {/* Right Header Action Buttons */}
         <div className="flex items-center gap-1.5">
-          {/* Search Placeholder */}
-          {/* TODO(feature): wire up search */}
+          {/* Search */}
           <button
             type="button"
-            disabled
-            aria-disabled="true"
-            aria-label="Search instruments"
-            title="Search not available yet"
-            className="w-11 h-11 flex items-center justify-center rounded-lg text-muted/50 cursor-not-allowed"
+            onClick={() => setSearchOpen((open) => !open)}
+            aria-label={searchOpen ? 'Close search' : 'Search instruments'}
+            aria-expanded={searchOpen}
+            className="w-11 h-11 flex items-center justify-center rounded-lg text-muted hover:text-fg cursor-pointer"
           >
             <Search className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -80,6 +81,12 @@ export function MobileLayout() {
         </div>
       </header>
 
+      {searchOpen && (
+        <div className="sticky top-14 z-20 border-b border-line bg-surface px-4 py-2">
+          <InstrumentSearch autoFocus />
+        </div>
+      )}
+
       {/* Simulated Notice & API Status Banner */}
       <div className="bg-surface-2/60 border-b border-line/60 px-4 py-1.5 flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 text-accent font-medium">
@@ -111,7 +118,12 @@ export function MobileLayout() {
           <HoldingsCard />
         </section>
 
-        {/* 5. Recent Orders */}
+        {/* 5. Watchlist */}
+        <section aria-label="Watchlist">
+          <WatchlistCard />
+        </section>
+
+        {/* 6. Recent Orders */}
         <section aria-label="Recent Simulated Orders">
           <RecentOrders />
         </section>
