@@ -29,6 +29,13 @@ nexfolio/
     public/
       favicon.svg         # SVG favicon with brand mark
     src/
+      api/
+        auth.js           # Fetch wrapper for /api/auth (cookie session, typed ApiError)
+      context/
+        AuthContext.jsx   # AuthProvider/useAuth: loading, authenticated or anonymous state
+      features/
+        auth/
+          AuthPage.jsx    # Sign-in / create-account screen for anonymous visitors
       components/
         ui/               # UI primitives (Avatar, Badge, Button, Card, SegmentedControl, Skeleton)
       config/
@@ -97,6 +104,9 @@ All portfolio figures and time ranges are derived from a single deterministic se
 - Day P&L is calculated directly from the change between the last two daily points (`-₹1,798.90` / `-0.14%`).
 - Monthly performance returns (12 buckets from `2025-11` to `2026-10`) are derived from month-end valuation delta in the master series.
 - All financial calculations are done in integer paise arithmetic to avoid floating-point inaccuracies.
+
+### Authentication in the Client
+Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token. The dashboard data itself is still sample data.
 
 ### Visual Placeholders & Disabled Controls
 The following controls are intentional visual placeholders awaiting future backend and engine integration:
