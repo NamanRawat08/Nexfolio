@@ -3,13 +3,7 @@ import { ShieldAlert } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-
-const FRIENDLY_ERRORS = {
-  INVALID_CREDENTIALS: 'Incorrect email/username or password.',
-  EMAIL_TAKEN: 'That email is already registered.',
-  USERNAME_TAKEN: 'That username is already taken.',
-  RATE_LIMITED: 'Too many attempts. Please wait a few minutes and try again.',
-};
+import { friendlyAuthError, validateRegistration } from './authMessages.js';
 
 function Field({ label, type = 'text', value, onChange, autoComplete, hint }) {
   const id = useId();
@@ -54,6 +48,13 @@ export function AuthPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    if (!isLogin) {
+      const problem = validateRegistration({ username: username.trim(), password });
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -63,7 +64,7 @@ export function AuthPage() {
         await register(email.trim(), username.trim(), password);
       }
     } catch (err) {
-      setError(FRIENDLY_ERRORS[err.code] ?? err.message);
+      setError(friendlyAuthError(err));
       setSubmitting(false);
     }
   };
@@ -101,7 +102,7 @@ export function AuthPage() {
                   value={username}
                   onChange={setUsername}
                   autoComplete="username"
-                  hint="3–30 characters: letters, numbers and underscores."
+                  hint="3 to 30 characters. Letters, numbers and underscores only."
                 />
               </>
             )}
@@ -111,7 +112,7 @@ export function AuthPage() {
               value={password}
               onChange={setPassword}
               autoComplete={isLogin ? 'current-password' : 'new-password'}
-              hint={isLogin ? undefined : 'At least 8 characters.'}
+              hint={isLogin ? undefined : 'At least 8 characters. Longer is safer.'}
             />
 
             {error && (
