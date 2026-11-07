@@ -3,26 +3,35 @@ import { tradingApi } from '../api/trading.js';
 
 const PortfolioContext = createContext(null);
 const RECENT_ORDER_LIMIT = 6;
+const OPEN_ORDER_LIMIT = 50;
 
 /**
- * Loads the signed-in user's summary, holdings and recent orders, and exposes
+ * Loads the signed-in user's summary, holdings, recent orders and open (pending) orders, and exposes
  * refresh() to reload them after a trade. Mount only while authenticated.
  * Status is 'loading' until the first load, then 'ready' or 'error'.
  */
 export function PortfolioProvider({ children }) {
-  const [state, setState] = useState({ status: 'loading', summary: null, holdings: [], orders: [] });
+  const [state, setState] = useState({
+    status: 'loading',
+    summary: null,
+    holdings: [],
+    orders: [],
+    openOrders: [],
+  });
 
   const load = useCallback(async (signal) => {
-    const [summary, holdings, orders] = await Promise.all([
+    const [summary, holdings, orders, openOrders] = await Promise.all([
       tradingApi.summary(signal),
       tradingApi.holdings(signal),
       tradingApi.orders(RECENT_ORDER_LIMIT, signal),
+      tradingApi.orders(OPEN_ORDER_LIMIT, signal, 'PENDING'),
     ]);
     setState({
       status: 'ready',
       summary: summary.summary,
       holdings: holdings.holdings,
       orders: orders.orders,
+      openOrders: openOrders.orders,
     });
   }, []);
 

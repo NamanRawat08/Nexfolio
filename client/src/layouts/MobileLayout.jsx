@@ -7,6 +7,7 @@ import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
+import { OpenOrdersCard } from '../features/dashboard/OpenOrdersCard.jsx';
 import { WatchlistCard } from '../features/dashboard/WatchlistCard.jsx';
 import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
@@ -118,7 +119,12 @@ export function MobileLayout() {
           <HoldingsCard />
         </section>
 
-        {/* 5. Watchlist */}
+        {/* 5. Open limit orders */}
+        <section aria-label="Open Orders">
+          <OpenOrdersCard />
+        </section>
+
+        {/* 5b. Watchlist */}
         <section aria-label="Watchlist">
           <WatchlistCard />
         </section>

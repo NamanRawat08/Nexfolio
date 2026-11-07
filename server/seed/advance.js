@@ -2,6 +2,7 @@ import { withTransaction as defaultWithTransaction, closePool } from '../src/db/
 import { instrumentsData } from './instruments.data.js';
 import { generateHistory, daysInclusive, MARKET_START_DATE } from './priceGenerator.js';
 import { insertPriceRows } from './priceRows.js';
+import { runOrderMatching } from '../src/jobs/matchOrders.js';
 
 /**
  * Today's date in UTC as 'YYYY-MM-DD'.
@@ -89,8 +90,11 @@ export async function advancePrices({
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   advancePrices()
-    .then(({ endDate, inserted }) => {
+    .then(async ({ endDate, inserted }) => {
       console.log(`Prices advanced through ${endDate}: ${inserted} new price history records.`);
+      // New prices may have reached open limit orders.
+      const { checked, filled, skipped } = await runOrderMatching();
+      console.log(`Order matching: ${checked} open, ${filled} filled, ${skipped} skipped.`);
     })
     .catch((err) => {
       console.error('Advancing prices failed:', err && err.message ? err.message : err);

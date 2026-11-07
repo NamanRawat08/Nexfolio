@@ -15,6 +15,7 @@ import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
+import { OpenOrdersCard } from '../features/dashboard/OpenOrdersCard.jsx';
 import { WatchlistCard } from '../features/dashboard/WatchlistCard.jsx';
 import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
@@ -266,6 +267,9 @@ export function DesktopLayout() {
               <WatchlistCard />
             </div>
           </div>
+
+          {/* Row 4: Open limit orders */}
+          <OpenOrdersCard />
         </main>
       </div>
     </div>

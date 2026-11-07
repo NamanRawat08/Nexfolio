@@ -6,14 +6,17 @@ import { createOrderService } from './order.service.js';
  * In-memory fake of the repositories plus a transaction that snapshots state and
  * restores it when the callback throws, mimicking ROLLBACK.
  */
-function setup({ cash = 100000000n, price = '100.00', holding = null, instrument } = {}) {
+function setup({ cash = 100000000n, price = '100.00', holding = null, instrument, reserved } = {}) {
   const state = {
     cash,
     holding,
     orders: [],
+    reserved: { cashPaise: 0n, sharesByInstrument: new Map(), count: 0 },
     instrument:
-      instrument === undefined ? { id: '1', symbol: 'TCS', latestClose: price } : instrument,
+      instrument === undefined ? { id: '1', symbol: 'TCS', latestClose: price, latestTradeDate: '2026-11-07' } : instrument,
   };
+
+  if (reserved) state.reserved = reserved;
 
   const repos = {
     wallet: {
@@ -36,6 +39,9 @@ function setup({ cash = 100000000n, price = '100.00', holding = null, instrument
       },
     },
     order: {
+      async reservedForUser() {
+        return state.reserved;
+      },
       async create(o) {
         state.orders.push(o);
         return { id: String(state.orders.length), symbol: 'TCS', ...o };
@@ -213,6 +219,9 @@ describe('order.service', () => {
           },
         },
         order: {
+          async reservedForUser() {
+            return { cashPaise: 0n, sharesByInstrument: new Map(), count: 0 };
+          },
           async create() {
             throw new Error('disk full');
           },

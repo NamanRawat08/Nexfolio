@@ -51,6 +51,24 @@ describe('summarizePortfolio', () => {
   });
 });
 
+describe('summarizePortfolio reserved cash', () => {
+  it('reports available cash after reservations without changing total value', () => {
+    const s = summarizePortfolio('100000', [{ quantity: '1', totalCostPaise: '1000', lastPricePaise: '1000', prevClosePaise: '1000' }], '30000');
+    assert.equal(s.cashPaise, '100000');
+    assert.equal(s.reservedCashPaise, '30000');
+    assert.equal(s.availableCashPaise, '70000');
+    assert.equal(s.totalValuePaise, '101000');
+    assert.equal(s.availableCash, '700.00');
+    assert.equal(s.reservedCash, '300.00');
+  });
+
+  it('defaults to no reservation', () => {
+    const s = summarizePortfolio('500', []);
+    assert.equal(s.reservedCashPaise, '0');
+    assert.equal(s.availableCashPaise, '500');
+  });
+});
+
 describe('portfolio.controller', () => {
   const res = () => ({
     status(c) { this.statusCode = c; return this; },
@@ -58,9 +76,10 @@ describe('portfolio.controller', () => {
   });
 
   it('requires dependencies', () => {
-    assert.throws(() => createPortfolioController({ holdingRepo: {}, historyService: {} }), /walletRepo is required/);
-    assert.throws(() => createPortfolioController({ walletRepo: {}, historyService: {} }), /holdingRepo is required/);
-    assert.throws(() => createPortfolioController({ walletRepo: {}, holdingRepo: {} }), /historyService is required/);
+    assert.throws(() => createPortfolioController({ holdingRepo: {}, orderRepo: {}, historyService: {} }), /walletRepo is required/);
+    assert.throws(() => createPortfolioController({ walletRepo: {}, orderRepo: {}, historyService: {} }), /holdingRepo is required/);
+    assert.throws(() => createPortfolioController({ walletRepo: {}, holdingRepo: {}, historyService: {} }), /orderRepo is required/);
+    assert.throws(() => createPortfolioController({ walletRepo: {}, holdingRepo: {}, orderRepo: {} }), /historyService is required/);
   });
 
   it('returns the summary for the signed-in user only', async () => {
@@ -68,13 +87,17 @@ describe('portfolio.controller', () => {
     const controller = createPortfolioController({
       walletRepo: { async findByUserId(id) { asked.push(id); return { cashPaise: '100' }; } },
       holdingRepo: { async listByUser(id) { asked.push(id); return []; } },
+      orderRepo: { async reservedForUser(id) { asked.push(id); return { cashPaise: 40n }; } },
       historyService: {},
     });
     const r = res();
     await controller.summary({ user: { id: '3' } }, r, () => {});
-    assert.deepEqual(asked, ['3', '3']);
+    assert.deepEqual(asked, ['3', '3', '3']);
     assert.equal(r.statusCode, 200);
     assert.equal(r.body.summary.totalValuePaise, '100');
+    assert.equal(r.body.summary.reservedCashPaise, '40');
+    assert.equal(r.body.summary.availableCashPaise, '60');
+    assert.equal(r.body.summary.availableCash, '0.60');
   });
 
   it('404s when the wallet is missing and forwards other errors', async () => {
@@ -82,6 +105,7 @@ describe('portfolio.controller', () => {
     const missing = createPortfolioController({
       walletRepo: { findByUserId: async () => null },
       holdingRepo: { listByUser: async () => [] },
+      orderRepo: { reservedForUser: async () => ({ cashPaise: 0n }) },
       historyService: {},
     });
     await missing.summary({ user: { id: '1' } }, res(), (e) => { error = e; });
@@ -91,6 +115,7 @@ describe('portfolio.controller', () => {
     const failing = createPortfolioController({
       walletRepo: { findByUserId: async () => { throw boom; } },
       holdingRepo: { listByUser: async () => [] },
+      orderRepo: { reservedForUser: async () => ({ cashPaise: 0n }) },
       historyService: {},
     });
     await failing.summary({ user: { id: '1' } }, res(), (e) => { error = e; });
@@ -104,7 +129,7 @@ describe('portfolio.controller history and performance', () => {
     json(d) { this.body = d; return this; },
   });
   const make = (historyService) =>
-    createPortfolioController({ walletRepo: {}, holdingRepo: {}, historyService });
+    createPortfolioController({ walletRepo: {}, holdingRepo: {}, orderRepo: {}, historyService });
 
   it('history defaults to 6M, normalizes case and uses req.user', async () => {
     const calls = [];
