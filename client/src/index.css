@@ -2,32 +2,50 @@
 
 /*
  * Nexfolio design tokens — single source of truth.
- * Tailwind v4 @theme block generates utilities like bg-bg, text-fg, etc.
- * WCAG AA contrast ratios verified (all ≥ 4.5:1 for body text):
- *   fg/surface=16.90  muted/surface=6.59  accent/bg=7.88
- *   accent-fg/accent=7.60  gain/surface=9.38  loss/surface=5.91
+ * Tailwind v4 @theme block generates utilities like bg-bg, text-fg, bg-buy, etc.
+ *
+ * Colour roles (kept deliberately separate):
+ *   accent  — brand and primary actions only (logo, active navigation, main buttons, focus)
+ *   gain / loss — money going up or down (P&L, charts)
+ *   buy / sell  — the trading actions (Buy is blue, Sell is red) so actions never read as P&L
+ *   info    — neutral data series (invested, allocation)
+ *
+ * Dark theme. WCAG AA verified: all text pairs (fg, muted, accent, gain, loss, buy on
+ * bg, surface and surface-2) are >= 4.5:1; button text on accent/buy/sell is >= 7.5:1.
+ * Cards are lifted off the page (surface/bg = 1.19:1) with a visible border (line/surface = 1.6:1).
  */
 @theme {
   /* Backgrounds */
-  --color-bg: #120d0a;
-  --color-surface: #1c1511;
-  --color-surface-2: #261c16;
+  --color-bg: #0b0807;
+  --color-surface: #241c16;
+  --color-surface-2: #33281f;
 
   /* Borders */
-  --color-line: #33261e;
+  --color-line: #4d3c30;
 
   /* Text */
   --color-fg: #fbf7f2;
-  --color-muted: #a89a8d;
+  --color-muted: #bdae9f;
 
-  /* Accent — amber/bronze-gold */
-  --color-accent: #d9993a;
-  --color-accent-hover: #e8ac4f;
+  /* Accent — amber/bronze-gold (brand and primary actions) */
+  --color-accent: #e2a548;
+  --color-accent-hover: #edb862;
   --color-accent-fg: #1a1109;
 
   /* Semantic — financial */
-  --color-gain: #34d399;
-  --color-loss: #ef6a5b;
+  --color-gain: #3fd99b;
+  --color-loss: #ff7d6d;
+
+  /* Trading actions */
+  --color-buy: #6db0ff;
+  --color-buy-hover: #8cc2ff;
+  --color-buy-fg: #06101f;
+  --color-sell: #ff7d6d;
+  --color-sell-hover: #ff9487;
+  --color-sell-fg: #240a07;
+
+  /* Neutral data series */
+  --color-info: #6db0ff;
 
   /* Font family — system stack, no external fonts */
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -35,22 +53,28 @@
 
 /*
  * Light theme — overrides the same tokens when <html data-theme="light"> (see ThemeContext).
- * WCAG AA contrast verified (all >= 4.5:1 for text):
- *   fg/surface=18.03  muted/surface-2=5.42  accent/surface-2=5.04
- *   accent-fg/accent=5.91  gain/surface-2=4.68  loss/surface-2=5.61
+ * WCAG AA verified: all text pairs >= 4.5:1 (lowest: accent/surface-2 and gain/surface-2);
+ * button text on accent/buy/sell is >= 6.1:1.
  */
 :root[data-theme="light"] {
-  --color-bg: #faf6f0;
+  --color-bg: #f4efe7;
   --color-surface: #ffffff;
-  --color-surface-2: #f3ece2;
-  --color-line: #e2d6c6;
+  --color-surface-2: #ece3d6;
+  --color-line: #cfc1ae;
   --color-fg: #1c1511;
-  --color-muted: #6b5d50;
-  --color-accent: #8c590f;
-  --color-accent-hover: #734709;
+  --color-muted: #5a4d43;
+  --color-accent: #8f5305;
+  --color-accent-hover: #764304;
   --color-accent-fg: #ffffff;
-  --color-gain: #047857;
+  --color-gain: #046a4c;
   --color-loss: #b42318;
+  --color-buy: #1d5fb8;
+  --color-buy-hover: #164d99;
+  --color-buy-fg: #ffffff;
+  --color-sell: #b42318;
+  --color-sell-hover: #911c13;
+  --color-sell-fg: #ffffff;
+  --color-info: #1d5fb8;
 }
 
 /* Native controls (form fields, scrollbars) follow the theme */

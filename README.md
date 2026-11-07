@@ -96,7 +96,7 @@ Nexfolio switches between two layouts dynamically based on viewport width:
 ## Dashboard Data, Pages and Theme
 
 ### Live Dashboard Data
-Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Portfolio Value chart and Monthly Performance chart load `GET /api/portfolio/history` and `GET /api/portfolio/performance`; nothing on the dashboard uses sample data any more.
+Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** (in the hero card at the top of the dashboard) open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Portfolio Value chart and Monthly Performance chart load `GET /api/portfolio/history` and `GET /api/portfolio/performance`; nothing on the dashboard uses sample data any more.
 
 #### How portfolio history is computed
 The server replays the user's orders over the market calendar (the last 366 trading dates in `price_history`): value on a date = cash + Σ shares × that day's close. Starting cash is reconstructed from the current balance and the order log. If prices have not been advanced to the day an order was placed (see `npm run market:advance`), that order is applied on the last price date; the final point therefore always equals the current portfolio value. History is flat until prices move after you trade, and an order's own fill price is its price at the time, so the day of a trade can show a small step if the market moved since the last close. Monthly `invested` is the value of holdings at month end and `returns` is the change in total value over the month (there are no deposits or withdrawals).
@@ -109,7 +109,15 @@ The navigation items are real pages, chosen by the URL hash (`#dashboard`, `#por
 - **Watchlist**: the watchlist card on its own page.
 - **Settings**: theme (match device, light or dark), account details, change password and sign out.
 
-The theme is applied by `ThemeContext` as `<html data-theme>`; `index.css` overrides the same design tokens for light, so no component has theme-specific code. The choice is saved in `localStorage` and a small script in `index.html` applies it before the app loads (no flash). The header button toggles light and dark; Settings also offers "Match my device". The light palette keeps WCAG AA text contrast (see the notes in `index.css`).
+The theme is applied by `ThemeContext` as `<html data-theme>`; `index.css` overrides the same design tokens for light, so no component has theme-specific code. The choice is saved in `localStorage` and a small script in `index.html` applies it before the app loads (no flash). The header button toggles light and dark; Settings also offers "Match my device". Both palettes keep WCAG AA text contrast (see the notes in `index.css`).
+
+**Colour roles** are kept separate so a colour always means one thing:
+- **accent** (amber): brand and primary actions only: the logo, the active navigation item, main buttons and focus rings.
+- **gain / loss** (green / red): money going up or down: P&L figures and the portfolio chart, whose line and fill turn green or red with the period's result.
+- **buy / sell** (blue / red): the trading actions and the BUY / SELL badges, so an action never reads as a profit or loss.
+- **info** (blue): neutral data series such as invested value and allocation bars.
+
+Cards are lifted off the page and given a visible border so sections read as separate blocks. The dashboard starts with a hero card (total portfolio value, change versus the previous close, and the Buy and Sell buttons); the chart shows the change over the selected period.
 
 ### Notifications
 The bell in the header shows an unread badge and a dropdown with your notifications. Today the only kind is **Limit order filled**, created by the order matcher in the same transaction that fills the order (so you never get one without the other, and re-running the matcher never duplicates it). The client refreshes the count on load, every minute and when the window regains focus; "Mark all as read" clears the badge. Amounts in notification text use Indian digit grouping (₹1,00,000.00).

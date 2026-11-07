@@ -1,4 +1,5 @@
 import React from 'react';
+import { HeroSummary } from '../features/dashboard/HeroSummary.jsx';
 import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
@@ -14,11 +15,13 @@ import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
  */
 export function DashboardPage({ compact }) {
   const heading = <h1 className="sr-only">Dashboard</h1>;
+  const hero = <HeroSummary />;
 
   if (compact) {
     return (
       <>
         {heading}
+        <section aria-label="Total portfolio value">{hero}</section>
         <section aria-label="Portfolio Performance">
           <PortfolioChart compact />
         </section>
@@ -47,6 +50,8 @@ export function DashboardPage({ compact }) {
   return (
     <>
       {heading}
+      {hero}
+
       {/* Row 1: Portfolio Chart (8 cols) + Wallet Cards (4 cols) */}
       <div className="grid grid-cols-12 gap-6 items-stretch">
         <div className="col-span-8 flex flex-col">

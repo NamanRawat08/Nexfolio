@@ -24,6 +24,8 @@ import {
 } from '../../utils/format.js';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
+const RANGE_WORDS = { '1M': '1 month', '3M': '3 months', '6M': '6 months', '1Y': '1 year' };
+
 const RANGE_OPTIONS = [
   { label: '1Y', value: '1Y' },
   { label: '6M', value: '6M' },
@@ -118,6 +120,7 @@ export function PortfolioChart({ compact = false }) {
   const isPositive = !isReady || currentData.changePercent >= 0;
   const ChangeIcon = isPositive ? TrendingUp : TrendingDown;
   const changeColorClass = isPositive ? 'text-gain' : 'text-loss';
+  const lineColor = isPositive ? 'var(--color-gain)' : 'var(--color-loss)';
 
   const ariaDescription = !isReady
     ? 'Simulated portfolio value chart'
@@ -134,25 +137,22 @@ export function PortfolioChart({ compact = false }) {
     <Card className="flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <span className="text-xs uppercase font-semibold tracking-wider text-muted block mb-1">
-            Simulated Portfolio Value
-          </span>
-          <div className="flex items-baseline gap-3 flex-wrap">
-            <span className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight tabular-nums">
-              {isReady ? formatCurrency(currentData.currentValue) : '—'}
-            </span>
-            {isReady && (
-              <span
-                className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${changeColorClass}`}
-              >
-                <ChangeIcon className="w-4 h-4" aria-hidden="true" />
-                <span>
-                  {formatSignedCurrency(currentData.changeAmount)} (
-                  {formatPercent(currentData.changePercent)})
-                </span>
+          <h2 className="text-xs uppercase font-semibold tracking-wider text-muted mb-1">
+            Portfolio value over time
+          </h2>
+          {isReady ? (
+            <div
+              className={`inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums ${changeColorClass}`}
+            >
+              <ChangeIcon className="w-4 h-4" aria-hidden="true" />
+              <span>
+                {formatSignedCurrency(currentData.changeAmount)} ({formatPercent(currentData.changePercent)})
               </span>
-            )}
-          </div>
+              <span className="font-normal text-muted">in {RANGE_WORDS[selectedRange]}</span>
+            </div>
+          ) : (
+            <span className="text-sm text-muted">—</span>
+          )}
         </div>
 
         <SegmentedControl
@@ -185,8 +185,8 @@ export function PortfolioChart({ compact = false }) {
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0.0} />
+                <stop offset="5%" stopColor={lineColor} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={lineColor} stopOpacity={0.0} />
               </linearGradient>
             </defs>
             <CartesianGrid
@@ -222,13 +222,13 @@ export function PortfolioChart({ compact = false }) {
             <Area
               type="monotone"
               dataKey="value"
-              stroke="var(--color-accent)"
+              stroke={lineColor}
               strokeWidth={2.2}
               fillOpacity={1}
               fill={`url(#${gradientId})`}
               activeDot={{
                 r: 5,
-                fill: 'var(--color-accent)',
+                fill: lineColor,
                 stroke: 'var(--color-surface)',
                 strokeWidth: 2,
               }}

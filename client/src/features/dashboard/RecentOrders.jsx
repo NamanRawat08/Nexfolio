@@ -90,7 +90,7 @@ export function RecentOrders() {
                       <span className="text-sm font-bold text-fg truncate">
                         {order.symbol}
                       </span>
-                      <Badge variant={isBuy ? 'gain' : 'loss'}>
+                      <Badge variant={isBuy ? 'buy' : 'sell'}>
                         {order.side}
                       </Badge>
                       {order.status !== 'FILLED' && (

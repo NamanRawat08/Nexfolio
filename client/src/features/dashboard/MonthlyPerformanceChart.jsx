@@ -67,7 +67,7 @@ function CustomBarLegend() {
       <div className="flex items-center gap-1.5">
         <span
           className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-          style={{ backgroundColor: 'var(--color-accent)' }}
+          style={{ backgroundColor: 'var(--color-info)' }}
           data-legend-swatch="invested"
         />
         <span>Invested</span>
@@ -174,7 +174,7 @@ export function MonthlyPerformanceChart({ compact = false }) {
             <Bar
               name="Invested"
               dataKey="invested"
-              fill="var(--color-accent)"
+              fill="var(--color-info)"
               radius={[4, 4, 0, 0]}
               maxBarSize={28}
             />

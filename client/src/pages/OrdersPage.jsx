@@ -43,7 +43,7 @@ function OrderItem({ order, onCancel, cancelling }) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-bold text-fg">{order.symbol}</span>
-          <Badge variant={isBuy ? 'gain' : 'loss'}>{order.side}</Badge>
+          <Badge variant={isBuy ? 'buy' : 'sell'}>{order.side}</Badge>
           <Badge variant="outline">{isLimit ? 'Limit' : 'Market'}</Badge>
           {order.status === 'PENDING' && <Badge variant="outline">Open</Badge>}
           {order.status === 'CANCELLED' && <Badge variant="outline">Cancelled</Badge>}

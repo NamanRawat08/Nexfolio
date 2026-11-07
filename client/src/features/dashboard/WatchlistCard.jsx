@@ -65,7 +65,7 @@ export function WatchlistCard() {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setBuySymbol(item.symbol)}>
+                  <Button variant="buy-outline" size="sm" onClick={() => setBuySymbol(item.symbol)}>
                     Buy
                   </Button>
                   <WatchButton symbol={item.symbol} onError={setError} />

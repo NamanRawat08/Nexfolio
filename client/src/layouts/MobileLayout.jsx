@@ -28,7 +28,7 @@ export function MobileLayout() {
           <span className="font-extrabold text-base tracking-tight text-fg">
             Nexfolio
           </span>
-          <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5 ml-1">
             SIM
           </Badge>
         </div>
@@ -77,7 +77,7 @@ export function MobileLayout() {
 
       {/* Simulated Notice & API Status Banner */}
       <div className="bg-surface-2/60 border-b border-line/60 px-4 py-1.5 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1.5 text-accent font-medium">
+        <div className="flex items-center gap-1.5 text-muted font-medium">
           <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
           <span className="text-[11px]">Simulated Data</span>
         </div>
