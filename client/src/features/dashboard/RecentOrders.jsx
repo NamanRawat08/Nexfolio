@@ -3,7 +3,7 @@ import { Card } from '../../components/ui/Card.jsx';
 import { Avatar } from '../../components/ui/Avatar.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
-import { recentOrdersData } from '../../data/mockDashboardData.js';
+import { usePortfolio } from '../../context/PortfolioContext.jsx';
 import { formatCurrency, formatDateTime } from '../../utils/format.js';
 import { Clock, Inbox } from 'lucide-react';
 
@@ -29,13 +29,12 @@ function OrderSkeletonRow() {
 }
 
 /**
- * Recent simulated order executions list.
- *
- * @param {object} props
- * @param {Array<object>} [props.items] - Order records (defaults to mock orders)
- * @param {boolean} [props.isLoading] - Triggers loading skeleton display
+ * Recent simulated order executions list, from GET /api/orders.
  */
-export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
+export function RecentOrders() {
+  const { status, orders: items } = usePortfolio();
+  const isLoading = status === 'loading';
+
   return (
     <Card className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
@@ -47,7 +46,7 @@ export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
             Simulated market executions
           </span>
         </div>
-        <Badge variant="outline">Last 6 Fills</Badge>
+        <Badge variant="outline">Latest 6</Badge>
       </div>
 
       <div className="flex-1 divide-y divide-line/40">
@@ -58,17 +57,21 @@ export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
             <OrderSkeletonRow />
             <OrderSkeletonRow />
           </>
+        ) : status === 'error' ? (
+          <p role="alert" className="py-8 text-center text-sm text-loss">
+            Could not load orders.
+          </p>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center text-muted">
             <Inbox className="w-8 h-8 mb-2 opacity-50" aria-hidden="true" />
             <p className="text-sm font-medium text-fg">No simulated orders yet</p>
             <p className="text-xs mt-1 text-muted">
-              Executed orders will appear here.
+              Buy or sell shares and your fills will appear here.
             </p>
           </div>
         ) : (
           items.map((order) => {
-            const isBuy = order.type === 'BUY';
+            const isBuy = order.side === 'BUY';
             const initials = order.symbol.slice(0, 3);
 
             return (
@@ -88,7 +91,7 @@ export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
                         {order.symbol}
                       </span>
                       <Badge variant={isBuy ? 'gain' : 'loss'}>
-                        {order.type}
+                        {order.side}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted truncate max-w-[140px] sm:max-w-[200px]">
@@ -99,11 +102,11 @@ export function RecentOrders({ items = recentOrdersData, isLoading = false }) {
 
                 <div className="text-right shrink-0 ml-3">
                   <div className="text-sm font-semibold tabular-nums text-fg">
-                    {formatCurrency(order.totalAmount)}
+                    {formatCurrency(order.total)}
                   </div>
                   <div className="text-[11px] text-muted flex items-center justify-end gap-1 mt-0.5">
                     <Clock className="w-3 h-3 text-muted/70" aria-hidden="true" />
-                    <span>{formatDateTime(order.timestamp)}</span>
+                    <span>{formatDateTime(order.createdAt)}</span>
                   </div>
                 </div>
               </div>

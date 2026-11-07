@@ -15,6 +15,7 @@ import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
 import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
+import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getInitials } from '../utils/user.js';
@@ -269,6 +270,9 @@ export function DesktopLayout() {
               <RecentOrders />
             </div>
           </div>
+
+          {/* Row 3: Holdings (full width) */}
+          <HoldingsCard />
         </main>
       </div>
     </div>

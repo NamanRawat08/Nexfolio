@@ -3,6 +3,7 @@ import { useMediaQuery } from './hooks/useMediaQuery.js';
 import { DesktopLayout } from './layouts/DesktopLayout.jsx';
 import { MobileLayout } from './layouts/MobileLayout.jsx';
 import { AuthPage } from './features/auth/AuthPage.jsx';
+import { PortfolioProvider } from './context/PortfolioContext.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 /**
@@ -25,7 +26,11 @@ function App() {
   }
   if (status === 'anonymous') return <AuthPage />;
 
-  return isDesktop ? <DesktopLayout /> : <MobileLayout />;
+  return (
+    <PortfolioProvider>
+      {isDesktop ? <DesktopLayout /> : <MobileLayout />}
+    </PortfolioProvider>
+  );
 }
 
 export default App;

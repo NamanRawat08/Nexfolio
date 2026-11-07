@@ -5,6 +5,7 @@ import { createInstrumentRouter } from './instrument.routes.js';
 import { createWalletRouter } from './wallet.routes.js';
 import { createOrderRouter } from './order.routes.js';
 import { createHoldingRouter } from './holding.routes.js';
+import { createPortfolioRouter } from './portfolio.routes.js';
 import { createAuthController } from '../controllers/auth.controller.js';
 import { createAuthMiddleware } from '../middleware/auth.middleware.js';
 import { createAuthService } from '../services/auth.service.js';
@@ -16,6 +17,7 @@ import { createWalletController } from '../controllers/wallet.controller.js';
 import { createWalletRepository } from '../repositories/wallet.repository.js';
 import { createOrderController } from '../controllers/order.controller.js';
 import { createHoldingController } from '../controllers/holding.controller.js';
+import { createPortfolioController } from '../controllers/portfolio.controller.js';
 import { createOrderRepository } from '../repositories/order.repository.js';
 import { createHoldingRepository } from '../repositories/holding.repository.js';
 import { createOrderService } from '../services/order.service.js';
@@ -101,6 +103,15 @@ export function createApiRouter({
 
   const holdingController = createHoldingController({ holdingRepo: createHoldingRepository(query) });
   apiRouter.use('/holdings', createHoldingRouter({ controller: holdingController, authMiddleware }));
+
+  const portfolioController = createPortfolioController({
+    walletRepo,
+    holdingRepo: createHoldingRepository(query),
+  });
+  apiRouter.use(
+    '/portfolio',
+    createPortfolioRouter({ controller: portfolioController, authMiddleware })
+  );
 
   return apiRouter;
 }

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
 import { Button } from '../../components/ui/Button.jsx';
-import { walletData } from '../../data/mockDashboardData.js';
+import { usePortfolio } from '../../context/PortfolioContext.jsx';
+import { TradeDialog } from '../trading/TradeDialog.jsx';
 import { formatCurrency, formatSignedCurrency, formatPercent } from '../../utils/format.js';
 import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
@@ -14,13 +15,18 @@ import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
  */
 export function WalletCards({ compact = false }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [tradeSide, setTradeSide] = useState(null);
+  const { status, summary } = usePortfolio();
+  const ready = status === 'ready' && summary !== null;
+  const dayPnl = ready ? summary.dayPnl : '0';
+  const isDayGain = !dayPnl.startsWith('-');
 
   const cards = [
     {
       id: 'available-cash',
       title: 'Available Cash',
       subtitle: 'Simulated Liquidity',
-      amount: walletData.availableCash,
+      amount: ready ? summary.cash : null,
       badge: 'SIM',
       gradient: 'from-surface-2 via-surface to-bg',
       border: 'border-accent/30',
@@ -31,7 +37,7 @@ export function WalletCards({ compact = false }) {
       id: 'invested-value',
       title: 'Invested Value',
       subtitle: 'Active Positions',
-      amount: walletData.investedValue,
+      amount: ready ? summary.investedValue : null,
       badge: 'SIM',
       gradient: 'from-surface-2 to-surface',
       border: 'border-line',
@@ -41,10 +47,10 @@ export function WalletCards({ compact = false }) {
     {
       id: 'day-pnl',
       title: 'Day P&L',
-      subtitle: "Today's Unrealized",
-      amount: walletData.dayPnL,
-      percent: walletData.dayPnLPercent,
-      isGain: walletData.isDayPnLPositive,
+      subtitle: 'Latest session',
+      amount: ready ? summary.dayPnl : null,
+      percent: ready ? summary.dayPnlRatio : undefined,
+      isGain: isDayGain,
       badge: 'SIM',
       gradient: 'from-surface to-bg',
       border: 'border-gain/20',
@@ -108,9 +114,11 @@ export function WalletCards({ compact = false }) {
                     </div>
                     <div>
                       <div className={`text-xl font-bold tabular-nums mb-1 ${colorClass}`}>
-                        {isSigned
-                          ? formatSignedCurrency(c.amount)
-                          : formatCurrency(c.amount)}
+                        {c.amount === null
+                          ? '—'
+                          : isSigned
+                            ? formatSignedCurrency(c.amount)
+                            : formatCurrency(c.amount)}
                       </div>
                       <div className="text-[11px] text-muted flex items-center gap-1.5">
                         <Icon className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
@@ -123,7 +131,7 @@ export function WalletCards({ compact = false }) {
                             >
                               {formatPercent(c.percent)}
                             </span>
-                            <span>today</span>
+                            <span>vs prior close</span>
                           </>
                         ) : (
                           <span>{c.detail}</span>
@@ -175,9 +183,11 @@ export function WalletCards({ compact = false }) {
                         <span className="text-xs text-muted font-medium">{c.title}</span>
                       </div>
                       <div className={`text-lg font-bold tabular-nums mt-0.5 ${colorClass}`}>
-                        {isSigned
-                          ? formatSignedCurrency(c.amount)
-                          : formatCurrency(c.amount)}
+                        {c.amount === null
+                          ? '—'
+                          : isSigned
+                            ? formatSignedCurrency(c.amount)
+                            : formatCurrency(c.amount)}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -202,32 +212,28 @@ export function WalletCards({ compact = false }) {
         )}
       </div>
 
-      {/* Quick Actions (Visual Placeholders) */}
+      {/* Quick Actions */}
       <div className="pt-4 mt-3 border-t border-line/60">
         <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-2">
           Quick Actions (Simulated)
         </span>
         <div className="grid grid-cols-2 gap-2">
-          {/* TODO(feature): wire up trading order execution for Buy */}
           <Button
             variant="primary"
             size="md"
-            disabled
-            title="Buy orders not available yet (Simulation only)"
-            aria-disabled="true"
+            disabled={!ready}
+            onClick={() => setTradeSide('BUY')}
             className="w-full flex items-center gap-1.5"
           >
             <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
             <span>Buy</span>
           </Button>
 
-          {/* TODO(feature): wire up trading order execution for Sell */}
           <Button
             variant="outline"
             size="md"
-            disabled
-            title="Sell orders not available yet (Simulation only)"
-            aria-disabled="true"
+            disabled={!ready}
+            onClick={() => setTradeSide('SELL')}
             className="w-full flex items-center gap-1.5"
           >
             <ArrowDownLeft className="w-4 h-4" aria-hidden="true" />
@@ -235,6 +241,12 @@ export function WalletCards({ compact = false }) {
           </Button>
         </div>
       </div>
+
+      <TradeDialog
+        open={tradeSide !== null}
+        side={tradeSide ?? 'BUY'}
+        onClose={() => setTradeSide(null)}
+      />
     </Card>
   );
 }
