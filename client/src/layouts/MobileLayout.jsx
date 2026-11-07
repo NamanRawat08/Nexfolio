@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Bell, ShieldAlert, LogOut } from 'lucide-react';
+import { Search, ShieldAlert, LogOut } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
 import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
+import { NotificationBell } from '../features/notifications/NotificationBell.jsx';
 import { useHashRoute } from '../hooks/useHashRoute.js';
 import { PAGES } from '../pages/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -45,18 +46,7 @@ export function MobileLayout() {
             <Search className="w-5 h-5" aria-hidden="true" />
           </button>
 
-          {/* Notifications Placeholder */}
-          {/* TODO(feature): wire up notifications */}
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            aria-label="Notifications"
-            title="Notifications not available yet"
-            className="w-11 h-11 flex items-center justify-center rounded-lg text-muted/50 cursor-not-allowed"
-          >
-            <Bell className="w-5 h-5" aria-hidden="true" />
-          </button>
+          <NotificationBell variant="mobile" />
 
           {/* User Profile Avatar */}
           <div className="pl-1">

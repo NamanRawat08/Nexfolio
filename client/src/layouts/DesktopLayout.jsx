@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  Bell,
   ShieldAlert,
   LogOut,
 } from 'lucide-react';
@@ -11,6 +10,7 @@ import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
 import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
+import { NotificationBell } from '../features/notifications/NotificationBell.jsx';
 import { ThemeToggle } from '../features/settings/ThemeToggle.jsx';
 import { useHashRoute } from '../hooks/useHashRoute.js';
 import { PAGES } from '../pages/index.js';
@@ -167,18 +167,7 @@ export function DesktopLayout() {
               <span>Simulation</span>
             </div>
 
-            {/* Notification Button (Placeholder) */}
-            {/* TODO(feature): wire up notification drawer */}
-            <Button
-              variant="outline"
-              size="icon"
-              disabled
-              title="Notifications not available yet"
-              aria-label="Notifications"
-              className="text-muted"
-            >
-              <Bell className="w-4 h-4" aria-hidden="true" />
-            </Button>
+            <NotificationBell />
 
             <ThemeToggle />
 

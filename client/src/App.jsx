@@ -5,6 +5,7 @@ import { MobileLayout } from './layouts/MobileLayout.jsx';
 import { AuthPage } from './features/auth/AuthPage.jsx';
 import { PortfolioProvider } from './context/PortfolioContext.jsx';
 import { WatchlistProvider } from './context/WatchlistContext.jsx';
+import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { useHashRoute } from './hooks/useHashRoute.js';
 import { NAV_ITEMS } from './config/navItems.js';
 import { useAuth } from './context/AuthContext.jsx';
@@ -39,7 +40,9 @@ function App() {
   return (
     <PortfolioProvider>
       <WatchlistProvider>
-        {isDesktop ? <DesktopLayout /> : <MobileLayout />}
+        <NotificationsProvider>
+          {isDesktop ? <DesktopLayout /> : <MobileLayout />}
+        </NotificationsProvider>
       </WatchlistProvider>
     </PortfolioProvider>
   );

@@ -13,9 +13,12 @@ import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
  * @param {{ compact: boolean }} props
  */
 export function DashboardPage({ compact }) {
+  const heading = <h1 className="sr-only">Dashboard</h1>;
+
   if (compact) {
     return (
       <>
+        {heading}
         <section aria-label="Portfolio Performance">
           <PortfolioChart compact />
         </section>
@@ -43,6 +46,7 @@ export function DashboardPage({ compact }) {
 
   return (
     <>
+      {heading}
       {/* Row 1: Portfolio Chart (8 cols) + Wallet Cards (4 cols) */}
       <div className="grid grid-cols-12 gap-6 items-stretch">
         <div className="col-span-8 flex flex-col">

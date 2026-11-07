@@ -15,6 +15,23 @@ export function formatPaiseToRupees(paise) {
 }
 
 /**
+ * Formats integer paise as rupees with Indian digit grouping and two decimals
+ * (e.g. '31769400' -> '3,17,694.00', 317694 -> '3,176.94'), matching how the app shows money.
+ *
+ * @param {string|number|bigint} paise
+ * @returns {string}
+ */
+export function formatRupeesIndian(paise) {
+  const plain = formatPaiseToRupees(paise);
+  const negative = plain.startsWith('-');
+  const [whole, fraction] = (negative ? plain.slice(1) : plain).split('.');
+  const last3 = whole.slice(-3);
+  const rest = whole.slice(0, -3);
+  const grouped = rest ? `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${last3}` : last3;
+  return `${negative ? '-' : ''}${grouped}.${fraction}`;
+}
+
+/**
  * Converts a rupee decimal string with at most two decimals to integer paise
  * (e.g. '1234.5' -> 123450n). Strict: no signs, exponents or extra precision.
  *
@@ -29,4 +46,4 @@ export function rupeesToPaise(rupees) {
   return BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
 }
 
-export default { formatPaiseToRupees, rupeesToPaise };
+export default { formatPaiseToRupees, formatRupeesIndian, rupeesToPaise };

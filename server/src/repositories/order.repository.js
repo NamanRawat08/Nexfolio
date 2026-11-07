@@ -154,17 +154,19 @@ export async function lockPending(orderId, query = defaultQuery) {
  */
 export async function listPending(query = defaultQuery) {
   const result = await query(
-    `SELECT id, user_id, instrument_id, side, quantity::text AS quantity,
-            limit_price_paise::text AS limit_price_paise,
-            to_char(placed_price_date, 'YYYY-MM-DD') AS placed_price_date
-     FROM orders
-     WHERE status = 'PENDING'
-     ORDER BY created_at ASC, id ASC`
+    `SELECT o.id, o.user_id, o.instrument_id, i.symbol, o.side, o.quantity::text AS quantity,
+            o.limit_price_paise::text AS limit_price_paise,
+            to_char(o.placed_price_date, 'YYYY-MM-DD') AS placed_price_date
+     FROM orders o
+     JOIN instruments i ON i.id = o.instrument_id
+     WHERE o.status = 'PENDING'
+     ORDER BY o.created_at ASC, o.id ASC`
   );
   return result.rows.map((row) => ({
     id: String(row.id),
     userId: String(row.user_id),
     instrumentId: String(row.instrument_id),
+    symbol: row.symbol,
     side: row.side,
     quantity: row.quantity,
     limitPricePaise: row.limit_price_paise,

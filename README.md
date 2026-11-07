@@ -93,7 +93,7 @@ Nexfolio switches between two layouts dynamically based on viewport width:
   - Fixed bottom navigation bar with safe-area bottom inset padding.
 - **Zero DOM Duplication**: Only one layout shell is mounted at any given time. Shared dashboard widgets accept a `compact` prop to adjust tick density, chart height, and padding.
 
-## Dashboard Data & Visual Placeholders
+## Dashboard Data, Pages and Theme
 
 ### Live Dashboard Data
 Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Portfolio Value chart and Monthly Performance chart load `GET /api/portfolio/history` and `GET /api/portfolio/performance`; nothing on the dashboard uses sample data any more.
@@ -101,19 +101,27 @@ Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings
 #### How portfolio history is computed
 The server replays the user's orders over the market calendar (the last 366 trading dates in `price_history`): value on a date = cash + Σ shares × that day's close. Starting cash is reconstructed from the current balance and the order log. If prices have not been advanced to the day an order was placed (see `npm run market:advance`), that order is applied on the last price date; the final point therefore always equals the current portfolio value. History is flat until prices move after you trade, and an order's own fill price is its price at the time, so the day of a trade can show a small step if the market moved since the last close. Monthly `invested` is the value of holdings at month end and `returns` is the change in total value over the month (there are no deposits or withdrawals).
 
+### Pages, Navigation and Theme
+The navigation items are real pages, chosen by the URL hash (`#dashboard`, `#portfolio`, `#orders`, `#watchlist`, `#settings`) through `useHashRoute`, so links, the back button and bookmarks work without a router library. Unknown hashes fall back to the dashboard.
+- **Dashboard**: the overview (charts, balances, holdings, watchlist, open and recent orders).
+- **Portfolio**: key numbers (total, invested, available cash, unrealized and day P&L), the value chart, holdings and an allocation breakdown by sector and cash.
+- **Orders**: the complete order history with All / Open / Filled / Cancelled filters, "Show more" paging, cancel for open orders, and profit or loss on sells.
+- **Watchlist**: the watchlist card on its own page.
+- **Settings**: theme (match device, light or dark), account details, change password and sign out.
+
+The theme is applied by `ThemeContext` as `<html data-theme>`; `index.css` overrides the same design tokens for light, so no component has theme-specific code. The choice is saved in `localStorage` and a small script in `index.html` applies it before the app loads (no flash). The header button toggles light and dark; Settings also offers "Match my device". The light palette keeps WCAG AA text contrast (see the notes in `index.css`).
+
+### Notifications
+The bell in the header shows an unread badge and a dropdown with your notifications. Today the only kind is **Limit order filled**, created by the order matcher in the same transaction that fills the order (so you never get one without the other, and re-running the matcher never duplicates it). The client refreshes the count on load, every minute and when the window regains focus; "Mark all as read" clears the badge. Amounts in notification text use Indian digit grouping (₹1,00,000.00).
+
 ### Search and Watchlist
 The header search (desktop) and the search button (mobile, opens a bar under the header) call `GET /api/instruments?search=` after a 250 ms pause and match on symbol or company name. Each result has a **Buy** button (opens the trade dialog with that instrument preselected) and a star that adds or removes it from the watchlist. The Watchlist card on the dashboard lists saved instruments with the latest price and day change, plus Buy and star buttons. State lives in `WatchlistProvider`/`useWatchlist` (`client/src/context/WatchlistContext.jsx`).
 
 ### Authentication in the Client
 Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Form problems are explained in plain language (for example "Your password is too short. Please use at least 8 characters.") by `features/auth/authMessages.js`, which checks the registration form before it is sent and rewrites the server's technical validation messages. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token.
 
-### Visual Placeholders & Disabled Controls
-The following controls are intentional visual placeholders awaiting future backend and engine integration:
-1. **Sidebar / Bottom Navigation Tabs**: `Portfolio`, `Orders`, `Watchlist`, `Settings` (styled with `aria-disabled="true"` and inactive indicators).
-2. **Search Inputs**: now live (see Search and Watchlist).
-3. **Notifications**: Bell notification button in header (`disabled`).
-4. **Theme Toggle**: Light theme toggle button in desktop header (`disabled`).
-5. **Quick Actions**: now live. "Buy" and "Sell" open the trade dialog (disabled only while portfolio data is loading).
+### Placeholders
+None. Every navigation tab and header control (search, notifications, theme toggle, Buy and Sell) is live.
 
 ## How to Run in Development
 
@@ -179,6 +187,7 @@ Migrations live in `server/migrations/`:
 - `0005_create_holdings_and_orders_tables`: Creates `holdings` (one row per user and instrument while quantity > 0, with `quantity` and `total_cost_paise`) and `orders` (immutable log of `BUY`/`SELL` fills with `quantity`, `price_paise`, `total_paise` and `realized_pnl_paise` on sells). All amounts are integer paise.
 - `0006_create_watchlist_items_table`: Creates `watchlist_items` with primary key `(user_id, instrument_id)` (an instrument appears once per user), cascade deletes, and an index for newest-first listing.
 - `0007_add_limit_orders`: Adds `order_type` (`MARKET`/`LIMIT`), `status` (`PENDING`/`FILLED`/`CANCELLED`), `limit_price_paise`, `placed_price_date`, `executed_on` and `updated_at` to `orders`. `price_paise` and `total_paise` become nullable (a CHECK keeps filled orders complete). Existing rows become filled market orders with `executed_on` set from their creation date. `down` deletes pending and cancelled orders.
+- `0008_create_notifications_table`: Creates `notifications` (`user_id`, `order_id`, `kind` `ORDER_FILLED`, plain-text `title` and `body`, `read_at`) with `UNIQUE (order_id, kind)` so an order notifies at most once, cascade deletes, and indexes for newest-first and unread lookups.
 
 ### 6. Seed Market Data
 To populate the database with initial instruments and deterministic historical closing prices:
@@ -209,12 +218,15 @@ cd server && npm run market:advance
 | GET | `/api/health/db` | Database connectivity check. Returns `{ status, database, timestamp }` on success, or `503 DB_UNAVAILABLE` on failure or timeout (2 s). |
 | POST | `/api/auth/register` | User registration. Validates email, username, and password (8–72 bytes). Returns `201 { user: { id, email, username, createdAt } }`. Does not set cookie. Rate limited (10 req / 15 min). |
 | POST | `/api/auth/login` | User authentication via email or username. Returns `200 { user: { id, email, username } }`. Sets `nexfolio_token` HTTP-only cookie. Token never appears in body. Rate limited (10 req / 15 min). |
+| POST | `/api/auth/change-password` | Change the signed-in user's password. Requires auth. Body: `{ currentPassword, newPassword }` (new password 8–72 bytes). Signs out every other session (token version bump) and sets a fresh `nexfolio_token` cookie for this one; the token is never in the body. Rate limited together with login and register. Returns `200 { success: true }`; `400 INVALID_CURRENT_PASSWORD` (400, not 401, so the client is not signed out), `400 PASSWORD_UNCHANGED`, `400 VALIDATION_ERROR`. |
 | POST | `/api/auth/logout` | User logout. Requires auth. Increments token version in DB to invalidate existing sessions and clears `nexfolio_token` cookie. Returns `204` No Content. |
 | GET | `/api/auth/me` | Current user profile. Requires auth via `nexfolio_token` cookie. Returns `200 { user: { id, email, username, createdAt } }`. |
 | GET | `/api/instruments` | List instruments with latest and previous close (prices as decimal strings). Requires auth. Query: `search` (max 50 chars, matches symbol or name), `limit` (1–100, default 50), `offset` (default 0). Returns `200 { instruments: [...] }`. Invalid query returns `400 INVALID_QUERY`. |
 | GET | `/api/instruments/:symbol` | Single instrument (case-insensitive symbol). Requires auth. Returns `200 { instrument }`, `400 INVALID_SYMBOL`, or `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/wallet` | Signed-in user's simulated cash. Requires auth. Returns `200 { wallet: { cashPaise, cash, currency } }` (`cashPaise` is an integer string, `cash` is rupees with 2 decimals, currency `INR`). New users start with ₹10,00,000. |
+| GET | `/api/notifications` | The signed-in user's notifications, newest first, plus `unreadCount`. Requires auth. Query: `limit` (1–50, default 20). Returns `200 { notifications, unreadCount }`. |
+| POST | `/api/notifications/read-all` | Mark all of the user's notifications as read. Requires auth. Returns `200 { unreadCount: 0 }`. |
 | GET | `/api/watchlist` | The signed-in user's watched instruments, newest first, with latest and previous close, `change` (rupees) and `changePercent` (decimal ratio). Requires auth. Returns `200 { watchlist }`. |
 | PUT | `/api/watchlist/:symbol` | Add an instrument (case-insensitive symbol). Requires auth. Safe to repeat: `201` when added, `200` if already watched. Errors: `400 INVALID_SYMBOL`, `404 INSTRUMENT_NOT_FOUND`, `409 WATCHLIST_FULL` (limit 50). |
 | DELETE | `/api/watchlist/:symbol` | Remove an instrument. Requires auth. Returns `204`, also when it was not on the list. |
@@ -260,5 +272,5 @@ cd server && npm run market:advance
 ## Status & Scope Boundaries
 
 Current status: a working paper-trading simulator. Users register, sign in, receive ₹10,00,000 of simulated cash, buy and sell seeded Indian equities at the latest close, and see live balances, holdings, orders and portfolio history on the dashboard.
-- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders with limit support, watchlist), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market and limit orders with a matching job, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog (market or limit), an Open Orders card, instrument search, a watchlist card and Recharts visualizations driven by live data.
-- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, stop orders, order expiry, partial fills, short selling and margin, notifications, a light theme, an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).
+- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders with limit support, watchlist, notifications), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market and limit orders with a matching job, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, change password, hash-routed pages (Dashboard, Portfolio, Orders, Watchlist, Settings), a light and dark theme, in-app notifications, dual desktop/mobile layouts, a Buy/Sell dialog (market or limit), an Open Orders card, instrument search, a watchlist card and Recharts visualizations driven by live data.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, stop orders, order expiry, partial fills, short selling and margin, email or push notifications (notifications appear in the app only), an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).

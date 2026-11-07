@@ -3,6 +3,7 @@ import { createWalletRepository } from '../repositories/wallet.repository.js';
 import { createHoldingRepository } from '../repositories/holding.repository.js';
 import { createOrderRepository } from '../repositories/order.repository.js';
 import { createInstrumentRepository } from '../repositories/instrument.repository.js';
+import { createNotificationRepository } from '../repositories/notification.repository.js';
 import { createOrderMatcher } from '../services/orderMatcher.js';
 
 /**
@@ -20,6 +21,7 @@ export async function runOrderMatching() {
       holding: createHoldingRepository(txQuery),
       order: createOrderRepository(txQuery),
       instrument: createInstrumentRepository(txQuery),
+      notification: createNotificationRepository(txQuery),
     }),
   });
   return matcher.matchAll();

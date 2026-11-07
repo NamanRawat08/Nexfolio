@@ -1,4 +1,6 @@
 import { applyFill } from './tradeExecution.js';
+import { formatRupeesIndian } from '../utils/money.js';
+import { formatShortDate } from '../utils/dates.js';
 
 /**
  * Factory creating the pending-order matcher. For every pending limit order it looks for the
@@ -7,12 +9,13 @@ import { applyFill } from './tradeExecution.js';
  *
  * Each order is processed in its own transaction that locks the user's wallet and then the
  * order (the same order the order service uses), so matching can run while users trade.
+ * A filled order also creates a notification for its owner in the same transaction.
  * Reservations made when the order was placed guarantee the cash or shares are there; if that
  * ever fails the order is left pending and counted as skipped.
  *
  * @param {object} options
  * @param {Function} options.withTransaction
- * @param {Function} options.createRepos - (query) => { wallet, holding, order, instrument }
+ * @param {Function} options.createRepos - (query) => { wallet, holding, order, instrument, notification }
  * @param {Function} options.query - Plain (non-transaction) query used to list pending orders
  */
 export function createOrderMatcher({ withTransaction, createRepos, query } = {}) {
@@ -69,6 +72,15 @@ export function createOrderMatcher({ withTransaction, createRepos, query } = {})
             totalPaise: fill.totalPaise,
             realizedPnlPaise: fill.realizedPnlPaise,
             executedOn: hit.date,
+          });
+          await repos.notification.create({
+            userId: p.userId,
+            orderId: p.id,
+            kind: 'ORDER_FILLED',
+            title: 'Limit order filled',
+            body: `Your order to ${p.side === 'BUY' ? 'buy' : 'sell'} ${p.quantity} ${p.symbol} was filled at ₹${formatRupeesIndian(
+              pricePaise
+            )} (your limit was ₹${formatRupeesIndian(p.limitPricePaise)}) on ${formatShortDate(hit.date)}.`,
           });
           return 'filled';
         });

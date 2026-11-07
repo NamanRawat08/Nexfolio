@@ -7,6 +7,7 @@ function setup({ pending, wallets, holdings = {}, crossing = {}, stillPending = 
     wallets: Object.fromEntries(Object.entries(wallets).map(([k, v]) => [k, BigInt(v)])),
     holdings: Object.fromEntries(Object.entries(holdings).map(([k, v]) => [k, { ...v }])),
     filled: [],
+    notifications: [],
     crossingCalls: [],
   };
   const repos = {
@@ -41,6 +42,12 @@ function setup({ pending, wallets, holdings = {}, crossing = {}, stillPending = 
         state.filled.push({ id, ...fill });
       },
     },
+    notification: {
+      async create(n) {
+        state.notifications.push(n);
+        return true;
+      },
+    },
     instrument: {
       async findFirstCrossing(instrumentId, side, limit, after) {
         state.crossingCalls.push({ instrumentId, side, limit, after });
@@ -66,7 +73,7 @@ function setup({ pending, wallets, holdings = {}, crossing = {}, stillPending = 
   return { matcher, state, txCount: () => txCount };
 }
 
-const buy = (id, over = {}) => ({ id, userId: 'u1', instrumentId: 'i1', side: 'BUY', quantity: '10', limitPricePaise: '9000', placedPriceDate: '2026-11-07', ...over });
+const buy = (id, over = {}) => ({ id, userId: 'u1', instrumentId: 'i1', symbol: 'TCS', side: 'BUY', quantity: '10', limitPricePaise: '9000', placedPriceDate: '2026-11-07', ...over });
 
 describe('createOrderMatcher', () => {
   it('requires its dependencies', () => {
