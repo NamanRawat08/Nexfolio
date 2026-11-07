@@ -26,12 +26,16 @@ export function WalletCards({ compact = false }) {
       id: 'available-cash',
       title: 'Available Cash',
       subtitle: 'Simulated Liquidity',
-      amount: ready ? summary.cash : null,
+      amount: ready ? summary.availableCash : null,
       badge: 'SIM',
       gradient: 'from-surface-2 via-surface to-bg',
       border: 'border-accent/30',
       icon: Wallet,
       detail: 'Instant virtual buying power',
+      note:
+        ready && summary.reservedCash !== '0.00'
+          ? `${formatCurrency(summary.reservedCash)} set aside for open orders`
+          : null,
     },
     {
       id: 'invested-value',
@@ -134,7 +138,7 @@ export function WalletCards({ compact = false }) {
                             <span>vs prior close</span>
                           </>
                         ) : (
-                          <span>{c.detail}</span>
+                          <span>{c.note ?? c.detail}</span>
                         )}
                       </div>
                     </div>
@@ -189,6 +193,7 @@ export function WalletCards({ compact = false }) {
                             ? formatSignedCurrency(c.amount)
                             : formatCurrency(c.amount)}
                       </div>
+                      {c.note && <div className="mt-0.5 text-[11px] text-muted">{c.note}</div>}
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge variant="outline" className="border-accent/40 text-accent">

@@ -93,6 +93,9 @@ export function RecentOrders() {
                       <Badge variant={isBuy ? 'gain' : 'loss'}>
                         {order.side}
                       </Badge>
+                      {order.status !== 'FILLED' && (
+                        <Badge variant="outline">{order.status === 'PENDING' ? 'OPEN' : 'CANCELLED'}</Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted truncate max-w-[140px] sm:max-w-[200px]">
                       {order.name}
@@ -102,7 +105,11 @@ export function RecentOrders() {
 
                 <div className="text-right shrink-0 ml-3">
                   <div className="text-sm font-semibold tabular-nums text-fg">
-                    {formatCurrency(order.total)}
+                    {order.status === 'FILLED'
+                      ? formatCurrency(order.total)
+                      : order.status === 'PENDING'
+                        ? `Limit ${formatCurrency(order.limitPrice)}`
+                        : '—'}
                   </div>
                   <div className="text-[11px] text-muted flex items-center justify-end gap-1 mt-0.5">
                     <Clock className="w-3 h-3 text-muted/70" aria-hidden="true" />

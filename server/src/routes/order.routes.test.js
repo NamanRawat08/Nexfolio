@@ -6,11 +6,11 @@ import { createHoldingRouter } from './holding.routes.js';
 describe('order and holding routes', () => {
   const auth = (req, res, next) => next();
 
-  it('orders: auth first, POST / and GET /', () => {
-    const router = createOrderRouter({ controller: { place() {}, list() {} }, authMiddleware: auth });
+  it('orders: auth first, POST /, GET / and DELETE /:id', () => {
+    const router = createOrderRouter({ controller: { place() {}, list() {}, cancel() {} }, authMiddleware: auth });
     assert.equal(router.stack[0].handle, auth);
     const routes = router.stack.filter((l) => l.route).map((l) => [l.route.path, Object.keys(l.route.methods)[0]]);
-    assert.deepEqual(routes, [['/', 'post'], ['/', 'get']]);
+    assert.deepEqual(routes, [['/', 'post'], ['/', 'get'], ['/:id', 'delete']]);
   });
 
   it('holdings: auth first, GET / only', () => {

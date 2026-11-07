@@ -1,10 +1,14 @@
 import { AppError } from '../utils/AppError.js';
 import { rupeesToPaise } from '../utils/money.js';
+import { applyFill } from './tradeExecution.js';
 
 const SYMBOL_PATTERN = /^[A-Za-z0-9&-]{1,20}$/;
+const ORDER_ID_PATTERN = /^\d{1,18}$/;
 export const MAX_ORDER_QUANTITY = 1_000_000;
+export const MAX_LIMIT_PRICE_PAISE = 999_999_999n; // ₹99,99,999.99
+export const MAX_PENDING_ORDERS = 20;
 
-function validateOrder({ symbol, side, quantity } = {}) {
+function validateOrder({ symbol, side, quantity, orderType, limitPrice } = {}) {
   if (typeof symbol !== 'string' || !SYMBOL_PATTERN.test(symbol)) {
     throw new AppError(400, 'VALIDATION_ERROR', 'Symbol is invalid');
   }
@@ -19,14 +23,50 @@ function validateOrder({ symbol, side, quantity } = {}) {
       `Quantity must be a whole number between 1 and ${MAX_ORDER_QUANTITY}`
     );
   }
-  return { symbol: symbol.toUpperCase(), side: normalizedSide, quantity: BigInt(quantity) };
+
+  const normalizedType = orderType === undefined ? 'MARKET' : typeof orderType === 'string' ? orderType.toUpperCase() : '';
+  if (normalizedType !== 'MARKET' && normalizedType !== 'LIMIT') {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Order type must be MARKET or LIMIT');
+  }
+
+  let limitPricePaise = null;
+  if (normalizedType === 'LIMIT') {
+    if (typeof limitPrice !== 'string') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Limit price is required for a limit order');
+    }
+    try {
+      limitPricePaise = rupeesToPaise(limitPrice);
+    } catch {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Limit price must be an amount in rupees with at most 2 decimals');
+    }
+    if (limitPricePaise < 1n || limitPricePaise > MAX_LIMIT_PRICE_PAISE) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Limit price is out of range');
+    }
+  } else if (limitPrice !== undefined && limitPrice !== null) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Limit price is only allowed for a limit order');
+  }
+
+  return {
+    symbol: symbol.toUpperCase(),
+    side: normalizedSide,
+    quantity: BigInt(quantity),
+    orderType: normalizedType,
+    limitPricePaise,
+  };
 }
 
 /**
- * Factory creating the order service. Orders are simulated market orders that fill
- * immediately at the instrument's latest close. Each order runs in one transaction
- * that locks the user's wallet first, so a user's orders are applied one at a time
- * and cash, holdings and the order log can never disagree.
+ * Factory creating the order service.
+ *
+ * - Market orders fill immediately at the instrument's latest close.
+ * - Limit orders fill immediately at the latest close when it already satisfies the limit
+ *   (at or below it for a BUY, at or above it for a SELL); otherwise they wait as PENDING and
+ *   are filled by the order matcher when a later daily close reaches the limit.
+ * - A pending BUY reserves limit price × quantity of cash and a pending SELL reserves its
+ *   shares, so cash and shares can never be promised twice.
+ *
+ * Each action runs in one transaction that locks the user's wallet first, so a user's orders
+ * are applied one at a time and cash, holdings and the order log can never disagree.
  *
  * @param {object} options
  * @param {Function} options.withTransaction - (fn(query)) => Promise, runs fn in a transaction
@@ -38,14 +78,14 @@ export function createOrderService({ withTransaction, createRepos } = {}) {
 
   return {
     /**
-     * Places and immediately fills a market order.
+     * Places a market or limit order.
      *
      * @param {string|number} userId
-     * @param {{ symbol: string, side: string, quantity: number }} input
-     * @returns {Promise<{ order: object, cashPaise: string }>}
+     * @param {{ symbol: string, side: string, quantity: number, orderType?: string, limitPrice?: string }} input
+     * @returns {Promise<{ order: object, cashPaise: string }>} cashPaise is the user's total cash after the call
      */
     async placeOrder(userId, input) {
-      const { symbol, side, quantity } = validateOrder(input);
+      const { symbol, side, quantity, orderType, limitPricePaise } = validateOrder(input);
 
       return withTransaction(async (query) => {
         const repos = createRepos(query);
@@ -60,53 +100,109 @@ export function createOrderService({ withTransaction, createRepos } = {}) {
         }
 
         const pricePaise = rupeesToPaise(instrument.latestClose);
-        const totalPaise = pricePaise * quantity;
         const cash = BigInt(wallet.cashPaise);
         const holding = await repos.holding.findForUpdate(userId, instrument.id);
+        const reserved = await repos.order.reservedForUser(userId);
 
-        let newCash;
-        let realizedPnlPaise = null;
+        const availableCash = cash - reserved.cashPaise;
+        const availableShares =
+          (holding?.quantity ?? 0n) - (reserved.sharesByInstrument.get(String(instrument.id)) ?? 0n);
 
-        if (side === 'BUY') {
-          if (totalPaise > cash) {
+        const marketable =
+          orderType === 'MARKET' ||
+          (side === 'BUY' ? pricePaise <= limitPricePaise : pricePaise >= limitPricePaise);
+
+        if (marketable) {
+          const totalPaise = pricePaise * quantity;
+          if (side === 'BUY' && totalPaise > availableCash) {
             throw new AppError(422, 'INSUFFICIENT_FUNDS', 'Not enough cash for this order');
           }
-          newCash = cash - totalPaise;
-          await repos.holding.upsert(userId, instrument.id, {
-            quantity: (holding?.quantity ?? 0n) + quantity,
-            totalCostPaise: (holding?.totalCostPaise ?? 0n) + totalPaise,
-          });
-        } else {
-          if (!holding || holding.quantity < quantity) {
+          if (side === 'SELL' && quantity > availableShares) {
             throw new AppError(422, 'INSUFFICIENT_HOLDINGS', 'Not enough shares to sell');
           }
-          // Cost basis leaves the position pro rata (rounded down); the rest stays on the remaining shares.
-          const costRemoved =
-            quantity === holding.quantity ? holding.totalCostPaise : (holding.totalCostPaise * quantity) / holding.quantity;
-          realizedPnlPaise = totalPaise - costRemoved;
-          newCash = cash + totalPaise;
-          if (quantity === holding.quantity) {
-            await repos.holding.remove(userId, instrument.id);
-          } else {
-            await repos.holding.upsert(userId, instrument.id, {
-              quantity: holding.quantity - quantity,
-              totalCostPaise: holding.totalCostPaise - costRemoved,
-            });
-          }
+
+          const fill = await applyFill({
+            repos,
+            userId,
+            instrumentId: instrument.id,
+            side,
+            quantity,
+            pricePaise,
+            cash,
+            holding,
+          });
+          const order = await repos.order.create({
+            userId,
+            instrumentId: instrument.id,
+            side,
+            quantity,
+            orderType,
+            status: 'FILLED',
+            limitPricePaise,
+            pricePaise,
+            totalPaise: fill.totalPaise,
+            realizedPnlPaise: fill.realizedPnlPaise,
+          });
+          return { order, cashPaise: fill.newCash.toString() };
         }
 
-        await repos.wallet.setCash(userId, newCash);
+        // Not fillable yet: park it as a pending limit order and reserve what it needs.
+        if (reserved.count >= MAX_PENDING_ORDERS) {
+          throw new AppError(
+            409,
+            'TOO_MANY_PENDING_ORDERS',
+            `You can have up to ${MAX_PENDING_ORDERS} open orders at once`
+          );
+        }
+        if (side === 'BUY' && limitPricePaise * quantity > availableCash) {
+          throw new AppError(422, 'INSUFFICIENT_FUNDS', 'Not enough cash to reserve for this order');
+        }
+        if (side === 'SELL' && quantity > availableShares) {
+          throw new AppError(422, 'INSUFFICIENT_HOLDINGS', 'Not enough shares to sell');
+        }
+
         const order = await repos.order.create({
           userId,
           instrumentId: instrument.id,
           side,
           quantity,
-          pricePaise,
-          totalPaise,
-          realizedPnlPaise,
+          orderType,
+          status: 'PENDING',
+          limitPricePaise,
+          placedPriceDate: instrument.latestTradeDate,
         });
+        return { order, cashPaise: cash.toString() };
+      });
+    },
 
-        return { order, cashPaise: newCash.toString() };
+    /**
+     * Cancels one of the user's pending limit orders, releasing what it reserved.
+     *
+     * @param {string|number} userId
+     * @param {string} orderId
+     * @returns {Promise<object>} the cancelled order
+     */
+    async cancelOrder(userId, orderId) {
+      if (typeof orderId !== 'string' || !ORDER_ID_PATTERN.test(orderId)) {
+        throw new AppError(400, 'INVALID_ORDER_ID', 'Order id is invalid');
+      }
+
+      return withTransaction(async (query) => {
+        const repos = createRepos(query);
+
+        // Lock order matches the matcher: wallet first, then the order.
+        const wallet = await repos.wallet.lockByUserId(userId);
+        if (!wallet) throw new AppError(404, 'WALLET_NOT_FOUND', 'Wallet not found');
+
+        const existing = await repos.order.lockForUser(orderId, userId);
+        if (!existing) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order not found');
+        if (existing.status !== 'PENDING') {
+          throw new AppError(409, 'ORDER_NOT_PENDING', 'Only open orders can be cancelled');
+        }
+
+        const cancelled = await repos.order.markCancelled(orderId);
+        if (!cancelled) throw new AppError(409, 'ORDER_NOT_PENDING', 'Only open orders can be cancelled');
+        return cancelled;
       });
     },
   };

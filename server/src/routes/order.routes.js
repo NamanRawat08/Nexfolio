@@ -16,6 +16,7 @@ export function createOrderRouter({ controller, authMiddleware } = {}) {
   router.use(authMiddleware);
   router.post('/', controller.place);
   router.get('/', controller.list);
+  router.delete('/:id', controller.cancel);
   return router;
 }
 

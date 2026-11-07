@@ -238,6 +238,37 @@ export async function getClosesForInstruments(instrumentIds, fromDate, query = d
   }));
 }
 
+// Comparison used to decide whether a close satisfies a limit price. Fixed map, never user input.
+const CROSSING_OPERATOR = Object.freeze({ BUY: '<=', SELL: '>=' });
+
+/**
+ * Finds the first close after `afterDate` that satisfies a limit price: at or below the limit
+ * for a BUY, at or above it for a SELL.
+ *
+ * @param {string|number} instrumentId
+ * @param {'BUY'|'SELL'} side
+ * @param {bigint|string} limitPricePaise
+ * @param {string|null} afterDate - 'YYYY-MM-DD'; only later dates are considered (null = all)
+ * @param {Function} [query=defaultQuery]
+ * @returns {Promise<{ date: string, closePaise: string } | null>}
+ */
+export async function findFirstCrossing(instrumentId, side, limitPricePaise, afterDate, query = defaultQuery) {
+  const operator = CROSSING_OPERATOR[side];
+  if (!operator) throw new Error('side must be BUY or SELL');
+  const result = await query(
+    `SELECT to_char(trade_date, 'YYYY-MM-DD') AS date, (close_price * 100)::bigint::text AS close_paise
+     FROM price_history
+     WHERE instrument_id = $1
+       AND ($3::date IS NULL OR trade_date > $3::date)
+       AND (close_price * 100)::bigint ${operator} $2::bigint
+     ORDER BY trade_date ASC
+     LIMIT 1`,
+    [instrumentId, String(limitPricePaise), afterDate]
+  );
+  const row = result.rows[0];
+  return row ? { date: row.date, closePaise: row.close_paise } : null;
+}
+
 /**
  * Repository factory allowing complete dependency injection of the query function.
  *
@@ -249,6 +280,7 @@ export function createInstrumentRepository(query = defaultQuery) {
     findBySymbol: (symbol) => findBySymbol(symbol, query),
     getHistory: (symbol, range) => getHistory(symbol, range, query),
     listTradeDates: (limit) => listTradeDates(limit, query),
+    findFirstCrossing: (id, side, limit, afterDate) => findFirstCrossing(id, side, limit, afterDate, query),
     getClosesForInstruments: (ids, fromDate) => getClosesForInstruments(ids, fromDate, query),
   };
 }
@@ -261,5 +293,6 @@ export default {
   getHistory,
   listTradeDates,
   getClosesForInstruments,
+  findFirstCrossing,
   createInstrumentRepository,
 };

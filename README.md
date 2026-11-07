@@ -178,6 +178,7 @@ Migrations live in `server/migrations/`:
 - `0004_create_wallets_table`: Creates `wallets` (one row per user, `cash_paise BIGINT >= 0`, cascade delete). A trigger on `users` gives every new user a wallet with 1,00,00,000 paise (₹10,00,000) in the same transaction as the user insert; existing users are backfilled.
 - `0005_create_holdings_and_orders_tables`: Creates `holdings` (one row per user and instrument while quantity > 0, with `quantity` and `total_cost_paise`) and `orders` (immutable log of `BUY`/`SELL` fills with `quantity`, `price_paise`, `total_paise` and `realized_pnl_paise` on sells). All amounts are integer paise.
 - `0006_create_watchlist_items_table`: Creates `watchlist_items` with primary key `(user_id, instrument_id)` (an instrument appears once per user), cascade deletes, and an index for newest-first listing.
+- `0007_add_limit_orders`: Adds `order_type` (`MARKET`/`LIMIT`), `status` (`PENDING`/`FILLED`/`CANCELLED`), `limit_price_paise`, `placed_price_date`, `executed_on` and `updated_at` to `orders`. `price_paise` and `total_paise` become nullable (a CHECK keeps filled orders complete). Existing rows become filled market orders with `executed_on` set from their creation date. `down` deletes pending and cancelled orders.
 
 ### 6. Seed Market Data
 To populate the database with initial instruments and deterministic historical closing prices:
@@ -198,6 +199,7 @@ cd server && npm run market:advance
 - Deterministic: the new closes are exactly what a fresh `npm run seed` would produce for those dates.
 - One transaction; refuses an end date in the future. It has no production guard because it is append-only and a simulated market needs to keep moving. Run it once a day (for example from cron) to keep the market current.
 - Orders fill at the latest close, so run it before trading if you want today's price.
+- It also fills any pending limit orders whose price has been reached (see Limit Orders).
 
 ## API Routes
 
@@ -216,18 +218,26 @@ cd server && npm run market:advance
 | GET | `/api/watchlist` | The signed-in user's watched instruments, newest first, with latest and previous close, `change` (rupees) and `changePercent` (decimal ratio). Requires auth. Returns `200 { watchlist }`. |
 | PUT | `/api/watchlist/:symbol` | Add an instrument (case-insensitive symbol). Requires auth. Safe to repeat: `201` when added, `200` if already watched. Errors: `400 INVALID_SYMBOL`, `404 INSTRUMENT_NOT_FOUND`, `409 WATCHLIST_FULL` (limit 50). |
 | DELETE | `/api/watchlist/:symbol` | Remove an instrument. Requires auth. Returns `204`, also when it was not on the list. |
-| GET | `/api/portfolio/summary` | Cash, invested value (latest close), cost basis, total value, unrealized P&L and day P&L (latest close vs the one before). Requires auth. Amounts in paise and rupees; `dayPnlRatio` is a decimal ratio for display. Returns `200 { summary }`. |
+| GET | `/api/portfolio/summary` | Cash, `reservedCash` and `availableCash` (cash set aside for pending limit buys), invested value (latest close), cost basis, total value, unrealized P&L and day P&L (latest close vs the one before). Requires auth. Amounts in paise and rupees; `dayPnlRatio` is a decimal ratio for display. Returns `200 { summary }`. |
 | GET | `/api/portfolio/history` | Portfolio value over time. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `6M`). Returns `200 { history: { rangeLabel, startValue, currentValue, changeAmount, changePercent, startDate, endDate, points: [{ date, value }] } }`; `400 INVALID_RANGE` on a bad range. |
 | GET | `/api/portfolio/performance` | Last 12 months: `invested` (holdings value at month end) and `returns` (change in total value). Requires auth. Returns `200 { performance: { asOf, months: [{ month, invested, returns }] } }`. |
-| POST | `/api/orders` | Place a simulated **market** order that fills immediately at the instrument's latest close. Requires auth. Body: `{ symbol, side: "BUY"\|"SELL", quantity }` (`quantity` a whole number, 1–1,000,000). Returns `201 { order, wallet }`. Errors: `400 VALIDATION_ERROR`, `404 INSTRUMENT_NOT_FOUND`, `409 NO_PRICE_AVAILABLE`, `422 INSUFFICIENT_FUNDS`, `422 INSUFFICIENT_HOLDINGS`. |
-| GET | `/api/orders` | The signed-in user's orders, newest first. Requires auth. Query: `limit` (1–100, default 50), `offset`. Returns `200 { orders }` with amounts in paise and rupees; `realizedPnl*` is set on sells only. |
+| POST | `/api/orders` | Place a simulated order. Requires auth. Body: `{ symbol, side: "BUY"\|"SELL", quantity, orderType?: "MARKET"\|"LIMIT", limitPrice? }` (`quantity` a whole number, 1–1,000,000; `limitPrice` a rupee string with at most 2 decimals, required for `LIMIT`). A market order, or a limit order the latest close already satisfies, fills at once at the latest close (`order.status` `FILLED`). Any other limit order is saved as `PENDING` and reserves cash or shares. Returns `201 { order, wallet }`. Errors: `400 VALIDATION_ERROR`, `404 INSTRUMENT_NOT_FOUND`, `409 NO_PRICE_AVAILABLE`, `409 TOO_MANY_PENDING_ORDERS` (limit 20), `422 INSUFFICIENT_FUNDS`, `422 INSUFFICIENT_HOLDINGS`. |
+| DELETE | `/api/orders/:id` | Cancel one of your open (`PENDING`) limit orders, releasing what it reserved. Requires auth. Returns `200 { order }`; `404 ORDER_NOT_FOUND` (also for other users' orders), `409 ORDER_NOT_PENDING`, `400 INVALID_ORDER_ID`. |
+| GET | `/api/orders` | The signed-in user's orders, newest first. Requires auth. Query: `limit` (1–100, default 50), `offset`, `status` (`PENDING`, `FILLED` or `CANCELLED`). Returns `200 { orders }` with amounts in paise and rupees; `realizedPnl*` is set on filled sells only, and `price`/`total` are `null` until an order fills. |
 | GET | `/api/holdings` | Current positions with quantity, average cost, last price, value and unrealized P&L. Requires auth. Returns `200 { holdings }`. |
 
 ### Trading Rules
-- Orders are simulated market orders only (no limit orders yet) and fill instantly at the latest close in `price_history`.
+- Market orders fill instantly at the latest close in `price_history`; limit orders are described under Limit Orders.
 - Each order runs in one database transaction that first locks the user's wallet row, so a user's orders apply one at a time. Cash, holdings and the order log always change together, and concurrent orders cannot overspend.
 - Cost basis is tracked per position. A sell removes cost pro rata (rounded down) and records realized P&L; selling the whole position uses the exact remaining cost.
 - Shares are whole numbers and money is integer paise (BigInt in code); there is no short selling and no margin.
+
+### Limit Orders
+- **Placing:** a limit BUY fills at once if the latest close is at or below your limit; a limit SELL if it is at or above. The fill price is the latest close (never worse than your limit). Otherwise the order is saved as `PENDING`.
+- **Reservations:** a pending BUY sets aside `limit price × quantity` of cash and a pending SELL sets aside its shares, so cash and shares cannot be promised twice. Market orders and new limit orders can only use what is not reserved. `availableCash` on the summary is cash minus reservations; total portfolio value is unchanged.
+- **Filling:** prices only change when `npm run market:advance` adds new days, and that command now ends by running the matcher. For every pending order the matcher finds the first daily close after the one known when the order was placed that satisfies the limit, and fills the order at that close, on that date. You can run it on its own with `cd server && npm run orders:match`. It is safe to repeat and to run while the server is handling orders (each order is matched in its own transaction that locks the wallet first, like the order service).
+- **Cancelling:** `DELETE /api/orders/:id`, or the Cancel button on the Open Orders card.
+- Orders are good until filled or cancelled (no expiry); at most 20 can be open at once. Portfolio history replays an order on the date it executed.
 
 ### Authentication & Cookie Behavior
 
@@ -250,5 +260,5 @@ cd server && npm run market:advance
 ## Status & Scope Boundaries
 
 Current status: a working paper-trading simulator. Users register, sign in, receive ₹10,00,000 of simulated cash, buy and sell seeded Indian equities at the latest close, and see live balances, holdings, orders and portfolio history on the dashboard.
-- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders, watchlist), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market orders, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog, instrument search, a watchlist card and Recharts visualizations driven by live data.
-- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, limit orders and order matching, short selling and margin, notifications, a light theme, an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).
+- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders with limit support, watchlist), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market and limit orders with a matching job, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog (market or limit), an Open Orders card, instrument search, a watchlist card and Recharts visualizations driven by live data.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, stop orders, order expiry, partial fills, short selling and margin, notifications, a light theme, an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).

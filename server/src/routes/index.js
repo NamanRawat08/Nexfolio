@@ -111,6 +111,7 @@ export function createApiRouter({
   const portfolioController = createPortfolioController({
     walletRepo,
     holdingRepo: createHoldingRepository(query),
+    orderRepo: createOrderRepository(query),
     historyService: createPortfolioHistoryService({
       walletRepo,
       orderRepo: createOrderRepository(query),

@@ -9,9 +9,12 @@ import { RANGE_POINTS } from '../services/portfolioHistory.js';
  *
  * @param {string|bigint} cashPaise
  * @param {Array<{ quantity: string, totalCostPaise: string, lastPricePaise?: string|null, prevClosePaise?: string|null }>} rows
+ * @param {string|bigint} [reservedCashPaise=0] - Cash held back by pending limit buy orders
  */
-export function summarizePortfolio(cashPaise, rows) {
+export function summarizePortfolio(cashPaise, rows, reservedCashPaise = 0n) {
   const cash = BigInt(cashPaise);
+  const reserved = BigInt(reservedCashPaise);
+  const available = cash - reserved;
   let invested = 0n;
   let cost = 0n;
   let dayPnl = 0n;
@@ -43,6 +46,8 @@ export function summarizePortfolio(cashPaise, rows) {
 
   return {
     cashPaise: cash.toString(),
+    reservedCashPaise: reserved.toString(),
+    availableCashPaise: available.toString(),
     investedValuePaise: invested.toString(),
     costBasisPaise: cost.toString(),
     totalValuePaise: total.toString(),
@@ -50,6 +55,8 @@ export function summarizePortfolio(cashPaise, rows) {
     dayPnlPaise: dayPnl.toString(),
     dayPnlRatio,
     cash: formatPaiseToRupees(cash),
+    reservedCash: formatPaiseToRupees(reserved),
+    availableCash: formatPaiseToRupees(available),
     investedValue: formatPaiseToRupees(invested),
     costBasis: formatPaiseToRupees(cost),
     totalValue: formatPaiseToRupees(total),
@@ -65,11 +72,13 @@ export function summarizePortfolio(cashPaise, rows) {
  * @param {object} options
  * @param {object} options.walletRepo
  * @param {object} options.holdingRepo
+ * @param {object} options.orderRepo - needs reservedForUser
  * @param {object} options.historyService - Portfolio history service
  */
-export function createPortfolioController({ walletRepo, holdingRepo, historyService } = {}) {
+export function createPortfolioController({ walletRepo, holdingRepo, orderRepo, historyService } = {}) {
   if (!walletRepo) throw new Error('walletRepo is required for createPortfolioController');
   if (!holdingRepo) throw new Error('holdingRepo is required for createPortfolioController');
+  if (!orderRepo) throw new Error('orderRepo is required for createPortfolioController');
   if (!historyService) throw new Error('historyService is required for createPortfolioController');
 
   return {
@@ -79,7 +88,10 @@ export function createPortfolioController({ walletRepo, holdingRepo, historyServ
         const wallet = await walletRepo.findByUserId(req.user.id);
         if (!wallet) throw new AppError(404, 'WALLET_NOT_FOUND', 'Wallet not found');
         const rows = await holdingRepo.listByUser(req.user.id);
-        return res.status(200).json({ summary: summarizePortfolio(wallet.cashPaise, rows) });
+        const reserved = await orderRepo.reservedForUser(req.user.id);
+        return res
+          .status(200)
+          .json({ summary: summarizePortfolio(wallet.cashPaise, rows, reserved.cashPaise) });
       } catch (err) {
         return next(err);
       }
