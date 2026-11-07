@@ -20,8 +20,9 @@ const FRIENDLY_ERRORS = {
  * @param {boolean} props.open
  * @param {'BUY'|'SELL'} props.side
  * @param {() => void} props.onClose
+ * @param {string} [props.initialSymbol] - Instrument to preselect when the dialog opens
  */
-export function TradeDialog({ open, side, onClose }) {
+export function TradeDialog({ open, side, onClose, initialSymbol }) {
   const dialogRef = useRef(null);
   const { holdings, refresh } = usePortfolio();
   const selectId = useId();
@@ -48,6 +49,7 @@ export function TradeDialog({ open, side, onClose }) {
   // Reset and load instruments each time the dialog opens.
   useEffect(() => {
     if (!open) return undefined;
+    setSymbol(initialSymbol ?? '');
     setQuantity('1');
     setError('');
     setFilled(null);
@@ -60,7 +62,7 @@ export function TradeDialog({ open, side, onClose }) {
         if (err.name !== 'AbortError') setLoadError('Could not load instruments.');
       });
     return () => controller.abort();
-  }, [open]);
+  }, [open, initialSymbol]);
 
   const heldBySymbol = new Map(holdings.map((h) => [h.symbol, h.quantity]));
   const options = isBuy ? instruments : instruments.filter((i) => heldBySymbol.has(i.symbol));
