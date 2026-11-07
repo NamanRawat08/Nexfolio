@@ -99,7 +99,7 @@ Nexfolio switches between two layouts dynamically based on viewport width:
 Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Portfolio Value chart and Monthly Performance chart load `GET /api/portfolio/history` and `GET /api/portfolio/performance`; nothing on the dashboard uses sample data any more.
 
 #### How portfolio history is computed
-The server replays the user's orders over the market calendar (the last 366 trading dates in `price_history`): value on a date = cash + Σ shares × that day's close. Starting cash is reconstructed from the current balance and the order log. Price data is a fixed simulation that can end before an order is placed, so orders dated after the last price date are applied on the last date; the final point therefore always equals the current portfolio value. The chart is flat until prices advance past the day you trade. Monthly `invested` is the value of holdings at month end and `returns` is the change in total value over the month (there are no deposits or withdrawals).
+The server replays the user's orders over the market calendar (the last 366 trading dates in `price_history`): value on a date = cash + Σ shares × that day's close. Starting cash is reconstructed from the current balance and the order log. If prices have not been advanced to the day an order was placed (see `npm run market:advance`), that order is applied on the last price date; the final point therefore always equals the current portfolio value. History is flat until prices move after you trade, and an order's own fill price is its price at the time, so the day of a trade can show a small step if the market moved since the last close. Monthly `invested` is the value of holdings at month end and `returns` is the change in total value over the month (there are no deposits or withdrawals).
 
 ### Authentication in the Client
 Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token.
@@ -180,10 +180,20 @@ To populate the database with initial instruments and deterministic historical c
 ```bash
 cd server && npm run seed
 ```
-- Populates exactly 18 Indian large-cap instruments (`instrumentsData`) and generates 366 consecutive calendar days of closing prices ending `2026-10-26` via a deterministic Mulberry32 PRNG.
+- Populates exactly 18 Indian large-cap instruments (`instrumentsData`) and generates one close per calendar day from `2025-10-26` (`MARKET_START_DATE`) through today (UTC) via a deterministic Mulberry32 PRNG. Each series is a random walk from that start date, so extending it never changes earlier prices.
 - Runs inside a single transaction (`BEGIN` / `COMMIT`, rolling back on error).
 - Idempotent: uses `ON CONFLICT ((upper(symbol))) DO NOTHING` for instruments and `ON CONFLICT (instrument_id, trade_date) DO NOTHING` for price history.
 - The seed script strictly refuses to run when `NODE_ENV === 'production'`.
+
+### 7. Advance Prices
+Prices stop at the day you last seeded. To add the days since then (up to today, UTC):
+```bash
+cd server && npm run market:advance
+```
+- Appends only dates after each instrument's latest stored date; existing prices are never changed, so it is safe to run repeatedly (a second run adds 0 rows).
+- Deterministic: the new closes are exactly what a fresh `npm run seed` would produce for those dates.
+- One transaction; refuses an end date in the future. It has no production guard because it is append-only and a simulated market needs to keep moving. Run it once a day (for example from cron) to keep the market current.
+- Orders fill at the latest close, so run it before trading if you want today's price.
 
 ## API Routes
 
@@ -234,4 +244,4 @@ cd server && npm run seed
 
 Current status: a working paper-trading simulator. Users register, sign in, receive ₹10,00,000 of simulated cash, buy and sell seeded Indian equities at the latest close, and see live balances, holdings, orders and portfolio history on the dashboard.
 - **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market orders, holdings, portfolio summary/history/performance endpoints, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog and Recharts visualizations driven by live data.
-- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, limit orders and order matching, short selling and margin, watchlist, search, notifications, a light theme, advancing prices past the seeded end date (`2026-10-26`), and automated client tests.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, limit orders and order matching, short selling and margin, watchlist, search, notifications, a light theme, an automatic daily price job (run `npm run market:advance` yourself or from cron), and automated client tests.

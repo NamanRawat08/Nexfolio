@@ -11,7 +11,8 @@
     "migrate:up": "npm run migrate -- up",
     "migrate:down": "npm run migrate -- down",
     "migrate:create": "npm run migrate -- create",
-    "seed": "node --env-file=.env seed/seed.js"
+    "seed": "node --env-file=.env seed/seed.js",
+    "market:advance": "node --env-file=.env seed/advance.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
