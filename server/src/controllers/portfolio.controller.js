@@ -1,5 +1,6 @@
 import { AppError } from '../utils/AppError.js';
 import { formatPaiseToRupees } from '../utils/money.js';
+import { RANGE_POINTS } from '../services/portfolioHistory.js';
 
 /**
  * Computes the portfolio summary from cash and positions using BigInt paise.
@@ -64,10 +65,12 @@ export function summarizePortfolio(cashPaise, rows) {
  * @param {object} options
  * @param {object} options.walletRepo
  * @param {object} options.holdingRepo
+ * @param {object} options.historyService - Portfolio history service
  */
-export function createPortfolioController({ walletRepo, holdingRepo } = {}) {
+export function createPortfolioController({ walletRepo, holdingRepo, historyService } = {}) {
   if (!walletRepo) throw new Error('walletRepo is required for createPortfolioController');
   if (!holdingRepo) throw new Error('holdingRepo is required for createPortfolioController');
+  if (!historyService) throw new Error('historyService is required for createPortfolioController');
 
   return {
     /** GET /portfolio/summary: cash, invested value, total value, unrealized and day P&L. */
@@ -77,6 +80,40 @@ export function createPortfolioController({ walletRepo, holdingRepo } = {}) {
         if (!wallet) throw new AppError(404, 'WALLET_NOT_FOUND', 'Wallet not found');
         const rows = await holdingRepo.listByUser(req.user.id);
         return res.status(200).json({ summary: summarizePortfolio(wallet.cashPaise, rows) });
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    /** GET /portfolio/history?range=1M|3M|6M|1Y (default 6M): portfolio value over time. */
+    async history(req, res, next) {
+      try {
+        const raw = req.query.range;
+        if (raw !== undefined && typeof raw !== 'string') {
+          throw new AppError(400, 'INVALID_RANGE', 'range must be a single value');
+        }
+        const range = (raw || '6M').toUpperCase();
+        if (!Object.hasOwn(RANGE_POINTS, range)) {
+          throw new AppError(
+            400,
+            'INVALID_RANGE',
+            `range must be one of ${Object.keys(RANGE_POINTS).join(', ')}`
+          );
+        }
+        const history = await historyService.getRange(req.user.id, range);
+        if (!history) throw new AppError(404, 'WALLET_NOT_FOUND', 'Wallet not found');
+        return res.status(200).json({ history });
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    /** GET /portfolio/performance: holdings value and net return for each of the last 12 months. */
+    async performance(req, res, next) {
+      try {
+        const performance = await historyService.getMonthly(req.user.id);
+        if (!performance) throw new AppError(404, 'WALLET_NOT_FOUND', 'Wallet not found');
+        return res.status(200).json({ performance });
       } catch (err) {
         return next(err);
       }

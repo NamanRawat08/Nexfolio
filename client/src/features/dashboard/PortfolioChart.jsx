@@ -10,7 +10,10 @@ import {
 } from 'recharts';
 import { Card } from '../../components/ui/Card.jsx';
 import { SegmentedControl } from '../../components/ui/SegmentedControl.jsx';
-import { portfolioRanges } from '../../data/mockDashboardData.js';
+import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import { tradingApi } from '../../api/trading.js';
+import { useApiData } from '../../hooks/useApiData.js';
+import { usePortfolio } from '../../context/PortfolioContext.jsx';
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -65,15 +68,11 @@ export function getMobileChartTicks(range, points) {
         .map((p) => p.date)
         .filter((d) => d.endsWith('-01'));
 
-    case '1Y':
-      // First-of-month ticks thinned evenly every 3 months
-      return [
-        '2025-11-01',
-        '2026-02-01',
-        '2026-05-01',
-        '2026-08-01',
-        '2026-10-01',
-      ].filter((d) => points.some((p) => p.date === d));
+    case '1Y': {
+      // First-of-month ticks thinned to every 3rd month, counted back from the latest month
+      const firsts = points.map((p) => p.date).filter((d) => d.endsWith('-01'));
+      return firsts.filter((_, i) => (firsts.length - 1 - i) % 3 === 0);
+    }
 
     default:
       return undefined;
@@ -108,14 +107,21 @@ export function PortfolioChart({ compact = false }) {
   const [selectedRange, setSelectedRange] = useState('6M');
   const gradientId = useId();
 
-  const currentData = portfolioRanges[selectedRange] || portfolioRanges['6M'];
-  const chartPoints = toChartNumbers(currentData.points);
+  const { orders } = usePortfolio();
+  const { status, data: currentData } = useApiData(
+    (signal) => tradingApi.history(selectedRange, signal).then((r) => r.history),
+    [selectedRange, orders]
+  );
+  const isReady = currentData !== null && currentData.points.length > 0;
+  const chartPoints = isReady ? toChartNumbers(currentData.points) : [];
 
-  const isPositive = currentData.changePercent >= 0;
+  const isPositive = !isReady || currentData.changePercent >= 0;
   const ChangeIcon = isPositive ? TrendingUp : TrendingDown;
   const changeColorClass = isPositive ? 'text-gain' : 'text-loss';
 
-  const ariaDescription = `Simulated portfolio value over ${selectedRange}: started at ${formatCurrency(
+  const ariaDescription = !isReady
+    ? 'Simulated portfolio value chart'
+    : `Simulated portfolio value over ${selectedRange}: started at ${formatCurrency(
     currentData.startValue,
     { compact: true }
   )} on ${formatDate(currentData.startDate)}, currently ${formatCurrency(
@@ -133,17 +139,19 @@ export function PortfolioChart({ compact = false }) {
           </span>
           <div className="flex items-baseline gap-3 flex-wrap">
             <span className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight tabular-nums">
-              {formatCurrency(currentData.currentValue)}
+              {isReady ? formatCurrency(currentData.currentValue) : '—'}
             </span>
-            <span
-              className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${changeColorClass}`}
-            >
-              <ChangeIcon className="w-4 h-4" aria-hidden="true" />
-              <span>
-                {formatSignedCurrency(currentData.changeAmount)} (
-                {formatPercent(currentData.changePercent)})
+            {isReady && (
+              <span
+                className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${changeColorClass}`}
+              >
+                <ChangeIcon className="w-4 h-4" aria-hidden="true" />
+                <span>
+                  {formatSignedCurrency(currentData.changeAmount)} (
+                  {formatPercent(currentData.changePercent)})
+                </span>
               </span>
-            </span>
+            )}
           </div>
         </div>
 
@@ -161,6 +169,15 @@ export function PortfolioChart({ compact = false }) {
         className="w-full relative select-none"
         style={{ height: compact ? 220 : 300 }}
       >
+        {!isReady ? (
+          status === 'loading' ? (
+            <Skeleton className="h-full w-full" />
+          ) : (
+            <p role={status === 'error' ? 'alert' : undefined} className="flex h-full items-center justify-center text-sm text-muted">
+              {status === 'error' ? 'Could not load portfolio history.' : 'No market data available yet.'}
+            </p>
+          )
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartPoints}
@@ -218,6 +235,7 @@ export function PortfolioChart({ compact = false }) {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </Card>
   );

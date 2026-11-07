@@ -10,10 +10,13 @@ describe('portfolio.routes', () => {
     assert.throws(() => createPortfolioRouter({ controller: {} }), /authMiddleware is required/);
   });
 
-  it('applies auth first and exposes only GET /summary', () => {
-    const router = createPortfolioRouter({ controller: { summary() {} }, authMiddleware: auth });
+  it('applies auth first and exposes only GET routes', () => {
+    const router = createPortfolioRouter({
+      controller: { summary() {}, history() {}, performance() {} },
+      authMiddleware: auth,
+    });
     assert.equal(router.stack[0].handle, auth);
     const routes = router.stack.filter((l) => l.route);
-    assert.deepEqual(routes.map((l) => [l.route.path, Object.keys(l.route.methods)[0]]), [['/summary', 'get']]);
+    assert.deepEqual(routes.map((l) => [l.route.path, Object.keys(l.route.methods)[0]]), [['/summary', 'get'], ['/history', 'get'], ['/performance', 'get']]);
   });
 });

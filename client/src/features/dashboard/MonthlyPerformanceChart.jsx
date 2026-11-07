@@ -11,7 +11,10 @@ import {
   Cell,
 } from 'recharts';
 import { Card } from '../../components/ui/Card.jsx';
-import { monthlyPerformanceData, SAMPLE_AS_OF } from '../../data/mockDashboardData.js';
+import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import { tradingApi } from '../../api/trading.js';
+import { useApiData } from '../../hooks/useApiData.js';
+import { usePortfolio } from '../../context/PortfolioContext.jsx';
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -20,7 +23,7 @@ import {
   toChartNumbers,
 } from '../../utils/format.js';
 
-function PerformanceTooltip({ active, payload, label }) {
+function PerformanceTooltip({ active, payload, label, asOf }) {
   if (active && payload && payload.length) {
     const invested = payload.find((p) => p.dataKey === 'invested')?.value || 0;
     const returns = payload.find((p) => p.dataKey === 'returns')?.value || 0;
@@ -29,7 +32,7 @@ function PerformanceTooltip({ active, payload, label }) {
     return (
       <div className="bg-surface-2 border border-line p-3 rounded-lg shadow-lg text-xs min-w-[140px]">
         <p className="font-semibold text-fg mb-1.5">
-          {formatMonthYear(label, { asOfDate: SAMPLE_AS_OF })}
+          {formatMonthYear(label, { asOfDate: asOf })}
         </p>
         <div className="space-y-1">
           <div className="flex justify-between items-center text-muted">
@@ -96,10 +99,15 @@ function CustomBarLegend() {
  * @param {boolean} [props.compact] - 6 months on mobile vs 12 months on desktop
  */
 export function MonthlyPerformanceChart({ compact = false }) {
-  const rawData = compact
-    ? monthlyPerformanceData.slice(-6)
-    : monthlyPerformanceData;
+  const { orders } = usePortfolio();
+  const { status, data: performance } = useApiData(
+    (signal) => tradingApi.performance(signal).then((r) => r.performance),
+    [orders]
+  );
+  const months = performance?.months ?? [];
+  const rawData = compact ? months.slice(-6) : months;
   const data = toChartNumbers(rawData);
+  const isReady = data.length > 0;
 
   return (
     <Card className="flex flex-col">
@@ -109,7 +117,7 @@ export function MonthlyPerformanceChart({ compact = false }) {
             Monthly Performance
           </h2>
           <p className="text-xs text-muted/80 mt-0.5">
-            Simulated capital allocation vs net monthly returns
+            Value of holdings vs net monthly change in portfolio value
           </p>
         </div>
       </div>
@@ -120,6 +128,15 @@ export function MonthlyPerformanceChart({ compact = false }) {
         className="w-full relative select-none"
         style={{ height: compact ? 220 : 280 }}
       >
+        {!isReady ? (
+          status === 'loading' ? (
+            <Skeleton className="h-full w-full" />
+          ) : (
+            <p role={status === 'error' ? 'alert' : undefined} className="flex h-full items-center justify-center text-sm text-muted">
+              {status === 'error' ? 'Could not load monthly performance.' : 'No market data available yet.'}
+            </p>
+          )
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
@@ -146,7 +163,7 @@ export function MonthlyPerformanceChart({ compact = false }) {
               tickFormatter={(v) => formatCurrency(v, { compact: true })}
             />
             <Tooltip
-              content={<PerformanceTooltip />}
+              content={<PerformanceTooltip asOf={performance?.asOf} />}
               cursor={{ fill: 'var(--color-surface-2)', opacity: 0.5 }}
             />
             <Legend
@@ -177,6 +194,7 @@ export function MonthlyPerformanceChart({ compact = false }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        )}
       </div>
     </Card>
   );

@@ -15,6 +15,8 @@ export function createPortfolioRouter({ controller, authMiddleware } = {}) {
   const router = Router();
   router.use(authMiddleware);
   router.get('/summary', controller.summary);
+  router.get('/history', controller.history);
+  router.get('/performance', controller.performance);
   return router;
 }
 
