@@ -40,8 +40,6 @@ nexfolio/
         ui/               # UI primitives (Avatar, Badge, Button, Card, SegmentedControl, Skeleton)
       config/
         navItems.js       # Centralized navigation item definitions
-      data/
-        mockDashboardData.js # Deterministic seeded master series and derived ranges/metrics
       features/
         dashboard/        # Layout-agnostic dashboard widgets
           ApiStatus.jsx               # Express health check indicator
@@ -95,21 +93,16 @@ Nexfolio switches between two layouts dynamically based on viewport width:
   - Fixed bottom navigation bar with safe-area bottom inset padding.
 - **Zero DOM Duplication**: Only one layout shell is mounted at any given time. Shared dashboard widgets accept a `compact` prop to adjust tick density, chart height, and padding.
 
-## Sample Data & Visual Placeholders
-
-### Deterministic Seeded Series
-All portfolio figures and time ranges are derived from a single deterministic seeded master series (`masterPortfolioSeries` in `mockDashboardData.js`):
-- Master series spans 366 daily points ending at sample date `2026-10-26`.
-- Ranges (`1Y`, `6M`, `3M`, `1M`) are exact slices of this master series.
-- Day P&L is calculated directly from the change between the last two daily points (`-₹1,798.90` / `-0.14%`).
-- Monthly performance returns (12 buckets from `2025-11` to `2026-10`) are derived from month-end valuation delta in the master series.
-- All financial calculations are done in integer paise arithmetic to avoid floating-point inaccuracies.
+## Dashboard Data & Visual Placeholders
 
 ### Live Dashboard Data
-Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Simulated Portfolio Value chart and Monthly Performance chart still use sample data (`mockDashboardData.js`) until the server can compute portfolio history.
+Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Portfolio Value chart and Monthly Performance chart load `GET /api/portfolio/history` and `GET /api/portfolio/performance`; nothing on the dashboard uses sample data any more.
+
+#### How portfolio history is computed
+The server replays the user's orders over the market calendar (the last 366 trading dates in `price_history`): value on a date = cash + Σ shares × that day's close. Starting cash is reconstructed from the current balance and the order log. Price data is a fixed simulation that can end before an order is placed, so orders dated after the last price date are applied on the last date; the final point therefore always equals the current portfolio value. The chart is flat until prices advance past the day you trade. Monthly `invested` is the value of holdings at month end and `returns` is the change in total value over the month (there are no deposits or withdrawals).
 
 ### Authentication in the Client
-Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token. The dashboard data itself is still sample data.
+Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token.
 
 ### Visual Placeholders & Disabled Controls
 The following controls are intentional visual placeholders awaiting future backend and engine integration:
@@ -207,6 +200,8 @@ cd server && npm run seed
 | GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/wallet` | Signed-in user's simulated cash. Requires auth. Returns `200 { wallet: { cashPaise, cash, currency } }` (`cashPaise` is an integer string, `cash` is rupees with 2 decimals, currency `INR`). New users start with ₹10,00,000. |
 | GET | `/api/portfolio/summary` | Cash, invested value (latest close), cost basis, total value, unrealized P&L and day P&L (latest close vs the one before). Requires auth. Amounts in paise and rupees; `dayPnlRatio` is a decimal ratio for display. Returns `200 { summary }`. |
+| GET | `/api/portfolio/history` | Portfolio value over time. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `6M`). Returns `200 { history: { rangeLabel, startValue, currentValue, changeAmount, changePercent, startDate, endDate, points: [{ date, value }] } }`; `400 INVALID_RANGE` on a bad range. |
+| GET | `/api/portfolio/performance` | Last 12 months: `invested` (holdings value at month end) and `returns` (change in total value). Requires auth. Returns `200 { performance: { asOf, months: [{ month, invested, returns }] } }`. |
 | POST | `/api/orders` | Place a simulated **market** order that fills immediately at the instrument's latest close. Requires auth. Body: `{ symbol, side: "BUY"\|"SELL", quantity }` (`quantity` a whole number, 1–1,000,000). Returns `201 { order, wallet }`. Errors: `400 VALIDATION_ERROR`, `404 INSTRUMENT_NOT_FOUND`, `409 NO_PRICE_AVAILABLE`, `422 INSUFFICIENT_FUNDS`, `422 INSUFFICIENT_HOLDINGS`. |
 | GET | `/api/orders` | The signed-in user's orders, newest first. Requires auth. Query: `limit` (1–100, default 50), `offset`. Returns `200 { orders }` with amounts in paise and rupees; `realizedPnl*` is set on sells only. |
 | GET | `/api/holdings` | Current positions with quantity, average cost, last price, value and unrealized P&L. Requires auth. Returns `200 { holdings }`. |
@@ -237,6 +232,6 @@ cd server && npm run seed
 
 ## Status & Scope Boundaries
 
-Current status: responsive dashboard UI with sample data and backend authentication foundation with PostgreSQL migration.
-- **Implemented**: Express 5 server with health checks (`/api/health`, `/api/health/db`), PostgreSQL database connection pooling and migration for `users` table, market data HTTP endpoints (`/api/instruments`), backend authentication HTTP layer (`/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) with HTTP-only cookies and in-memory rate limiting, dual desktop/mobile layout shells, Recharts visualizations with tooltips and visible keyboard focus rings, and deterministic sample data.
-- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, frontend authentication UI/forms, order matching engines.
+Current status: a working paper-trading simulator. Users register, sign in, receive ₹10,00,000 of simulated cash, buy and sell seeded Indian equities at the latest close, and see live balances, holdings, orders and portfolio history on the dashboard.
+- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market orders, holdings, portfolio summary/history/performance endpoints, a React client with sign-in/registration, dual desktop/mobile layouts, a Buy/Sell dialog and Recharts visualizations driven by live data.
+- **Not Implemented**: Real money trading, brokerage integration, exchange APIs, limit orders and order matching, short selling and margin, watchlist, search, notifications, a light theme, advancing prices past the seeded end date (`2026-10-26`), and automated client tests.

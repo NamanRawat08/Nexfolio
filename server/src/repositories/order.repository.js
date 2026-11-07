@@ -64,11 +64,36 @@ export async function listByUser(userId, { limit = 50, offset = 0 } = {}, query 
   return result.rows.map(mapOrder);
 }
 
+/**
+ * All of a user's orders, oldest first, in the minimal shape needed to replay
+ * cash and holdings over time. Dates are UTC calendar dates.
+ *
+ * @returns {Promise<Array<{ instrumentId: string, side: string, quantity: string, totalPaise: string, date: string }>>}
+ */
+export async function listForReplay(userId, query = defaultQuery) {
+  const result = await query(
+    `SELECT instrument_id, side, quantity::text AS quantity, total_paise::text AS total_paise,
+            to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date
+     FROM orders
+     WHERE user_id = $1
+     ORDER BY created_at ASC, id ASC`,
+    [userId]
+  );
+  return result.rows.map((row) => ({
+    instrumentId: String(row.instrument_id),
+    side: row.side,
+    quantity: row.quantity,
+    totalPaise: row.total_paise,
+    date: row.date,
+  }));
+}
+
 export function createOrderRepository(query = defaultQuery) {
   return {
     create: (params) => create(params, query),
     listByUser: (userId, options) => listByUser(userId, options, query),
+    listForReplay: (userId) => listForReplay(userId, query),
   };
 }
 
-export default { create, listByUser, createOrderRepository };
+export default { create, listByUser, listForReplay, createOrderRepository };

@@ -196,6 +196,49 @@ export async function getHistory(symbol, range = '1Y', query = defaultQuery) {
 }
 
 /**
+ * Lists the most recent distinct trading dates across all instruments, oldest first.
+ *
+ * @param {number} limit - Maximum number of dates
+ * @param {Function} [query=defaultQuery]
+ * @returns {Promise<string[]>} 'YYYY-MM-DD' strings
+ */
+export async function listTradeDates(limit, query = defaultQuery) {
+  const result = await query(
+    `SELECT to_char(d, 'YYYY-MM-DD') AS date
+     FROM (SELECT DISTINCT trade_date AS d FROM price_history ORDER BY d DESC LIMIT $1) t
+     ORDER BY d ASC`,
+    [Math.max(1, Math.min(1000, Number(limit) || 366))]
+  );
+  return result.rows.map((row) => row.date);
+}
+
+/**
+ * Close prices in integer paise for the given instruments from a start date onward.
+ *
+ * @param {Array<string|number>} instrumentIds
+ * @param {string} fromDate - 'YYYY-MM-DD'
+ * @param {Function} [query=defaultQuery]
+ * @returns {Promise<Array<{ instrumentId: string, date: string, closePaise: string }>>}
+ */
+export async function getClosesForInstruments(instrumentIds, fromDate, query = defaultQuery) {
+  if (!Array.isArray(instrumentIds) || instrumentIds.length === 0) return [];
+  const result = await query(
+    `SELECT instrument_id,
+            to_char(trade_date, 'YYYY-MM-DD') AS date,
+            (close_price * 100)::bigint::text AS close_paise
+     FROM price_history
+     WHERE instrument_id = ANY($1::bigint[]) AND trade_date >= $2::date
+     ORDER BY trade_date ASC`,
+    [instrumentIds.map(String), fromDate]
+  );
+  return result.rows.map((row) => ({
+    instrumentId: String(row.instrument_id),
+    date: row.date,
+    closePaise: row.close_paise,
+  }));
+}
+
+/**
  * Repository factory allowing complete dependency injection of the query function.
  *
  * @param {Function} [query=defaultQuery]
@@ -205,6 +248,8 @@ export function createInstrumentRepository(query = defaultQuery) {
     listInstruments: (options) => listInstruments(options, query),
     findBySymbol: (symbol) => findBySymbol(symbol, query),
     getHistory: (symbol, range) => getHistory(symbol, range, query),
+    listTradeDates: (limit) => listTradeDates(limit, query),
+    getClosesForInstruments: (ids, fromDate) => getClosesForInstruments(ids, fromDate, query),
   };
 }
 
@@ -214,5 +259,7 @@ export default {
   listInstruments,
   findBySymbol,
   getHistory,
+  listTradeDates,
+  getClosesForInstruments,
   createInstrumentRepository,
 };

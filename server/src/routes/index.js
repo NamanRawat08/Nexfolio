@@ -21,6 +21,7 @@ import { createPortfolioController } from '../controllers/portfolio.controller.j
 import { createOrderRepository } from '../repositories/order.repository.js';
 import { createHoldingRepository } from '../repositories/holding.repository.js';
 import { createOrderService } from '../services/order.service.js';
+import { createPortfolioHistoryService } from '../services/portfolioHistory.js';
 import { createUserRepository } from '../repositories/user.repository.js';
 import { query as poolQuery, withTransaction as poolWithTransaction } from '../db/pool.js';
 import { getConfig } from '../config/index.js';
@@ -107,6 +108,11 @@ export function createApiRouter({
   const portfolioController = createPortfolioController({
     walletRepo,
     holdingRepo: createHoldingRepository(query),
+    historyService: createPortfolioHistoryService({
+      walletRepo,
+      orderRepo: createOrderRepository(query),
+      instrumentRepo,
+    }),
   });
   apiRouter.use(
     '/portfolio',
