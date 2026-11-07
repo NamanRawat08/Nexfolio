@@ -36,3 +36,16 @@ describe('rupeesToPaise', () => {
     }
   });
 });
+
+describe('formatRupeesIndian', () => {
+  it('groups digits the Indian way', async () => {
+    const { formatRupeesIndian } = await import('./money.js');
+    assert.equal(formatRupeesIndian(0), '0.00');
+    assert.equal(formatRupeesIndian(5), '0.05');
+    assert.equal(formatRupeesIndian(99999), '999.99');
+    assert.equal(formatRupeesIndian(317694), '3,176.94');
+    assert.equal(formatRupeesIndian('10000000'), '1,00,000.00');
+    assert.equal(formatRupeesIndian('1234567890'), '1,23,45,678.90');
+    assert.equal(formatRupeesIndian(-12345678), '-1,23,456.78');
+  });
+});

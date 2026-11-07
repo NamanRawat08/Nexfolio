@@ -42,9 +42,9 @@ describe('order.repository (limit order support)', () => {
 
   it('listPending returns the matcher\'s minimal shape', async () => {
     const rows = await listPending(async () => ({
-      rows: [{ id: 9, user_id: 2, instrument_id: 3, side: 'BUY', quantity: '4', limit_price_paise: '500', placed_price_date: '2026-11-07' }],
+      rows: [{ id: 9, user_id: 2, instrument_id: 3, symbol: 'TCS', side: 'BUY', quantity: '4', limit_price_paise: '500', placed_price_date: '2026-11-07' }],
     }));
-    assert.deepEqual(rows, [{ id: '9', userId: '2', instrumentId: '3', side: 'BUY', quantity: '4', limitPricePaise: '500', placedPriceDate: '2026-11-07' }]);
+    assert.deepEqual(rows, [{ id: '9', userId: '2', instrumentId: '3', symbol: 'TCS', side: 'BUY', quantity: '4', limitPricePaise: '500', placedPriceDate: '2026-11-07' }]);
   });
 
   it('lockForUser scopes by user and locks the row; markCancelled only touches pending orders', async () => {

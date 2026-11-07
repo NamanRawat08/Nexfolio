@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import { Search, Bell, ShieldAlert, LogOut } from 'lucide-react';
+import { Search, ShieldAlert, LogOut } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
-import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
-import { WalletCards } from '../features/dashboard/WalletCards.jsx';
-import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
-import { OpenOrdersCard } from '../features/dashboard/OpenOrdersCard.jsx';
-import { WatchlistCard } from '../features/dashboard/WatchlistCard.jsx';
-import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
-import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
+import { NotificationBell } from '../features/notifications/NotificationBell.jsx';
+import { useHashRoute } from '../hooks/useHashRoute.js';
+import { PAGES } from '../pages/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getInitials } from '../utils/user.js';
 import { NAV_ITEMS } from '../config/navItems.js';
@@ -18,6 +14,8 @@ import { NAV_ITEMS } from '../config/navItems.js';
 export function MobileLayout() {
   const { user, logout } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
+  const route = useHashRoute();
+  const Page = PAGES[route];
   return (
     <div className="min-h-[100dvh] bg-bg text-fg flex flex-col overflow-x-hidden">
       {/* Sticky Compact Top Header */}
@@ -48,18 +46,7 @@ export function MobileLayout() {
             <Search className="w-5 h-5" aria-hidden="true" />
           </button>
 
-          {/* Notifications Placeholder */}
-          {/* TODO(feature): wire up notifications */}
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            aria-label="Notifications"
-            title="Notifications not available yet"
-            className="w-11 h-11 flex items-center justify-center rounded-lg text-muted/50 cursor-not-allowed"
-          >
-            <Bell className="w-5 h-5" aria-hidden="true" />
-          </button>
+          <NotificationBell variant="mobile" />
 
           {/* User Profile Avatar */}
           <div className="pl-1">
@@ -99,40 +86,7 @@ export function MobileLayout() {
 
       {/* Single-Column Main Content Stack */}
       <main className="flex-1 p-4 pb-24 space-y-4 max-w-full">
-        {/* 1. Portfolio Chart */}
-        <section aria-label="Portfolio Performance">
-          <PortfolioChart compact={true} />
-        </section>
-
-        {/* 2. Wallet Cards Snap Carousel */}
-        <section aria-label="Simulated Wallets">
-          <WalletCards compact={true} />
-        </section>
-
-        {/* 3. Monthly Performance */}
-        <section aria-label="Monthly Performance Breakdown">
-          <MonthlyPerformanceChart compact={true} />
-        </section>
-
-        {/* 4. Holdings */}
-        <section aria-label="Holdings">
-          <HoldingsCard />
-        </section>
-
-        {/* 5. Open limit orders */}
-        <section aria-label="Open Orders">
-          <OpenOrdersCard />
-        </section>
-
-        {/* 5b. Watchlist */}
-        <section aria-label="Watchlist">
-          <WatchlistCard />
-        </section>
-
-        {/* 6. Recent Orders */}
-        <section aria-label="Recent Simulated Orders">
-          <RecentOrders />
-        </section>
+        <Page compact />
       </main>
 
       {/* Fixed Bottom Tab Navigation Bar */}
@@ -143,36 +97,21 @@ export function MobileLayout() {
         <div className="flex items-center justify-around h-16">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            if (item.active) {
-              return (
-                <a
-                  key={item.id}
-                  href="#dashboard"
-                  aria-current="page"
-                  className="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] text-accent select-none"
-                >
-                  <Icon className="w-5 h-5 mb-0.5" aria-hidden="true" />
-                  <span className="text-[10px] font-bold tracking-tight">
-                    {item.label}
-                  </span>
-                </a>
-              );
-            }
-
+            const current = item.id === route;
             return (
-              <button
+              <a
                 key={item.id}
-                type="button"
-                disabled
-                aria-disabled="true"
-                title="Coming soon"
-                className="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] text-muted/50 cursor-not-allowed select-none"
+                href={`#${item.id}`}
+                aria-current={current ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] select-none ${
+                  current ? 'text-accent' : 'text-muted hover:text-fg'
+                }`}
               >
                 <Icon className="w-5 h-5 mb-0.5" aria-hidden="true" />
-                <span className="text-[10px] font-medium tracking-tight">
+                <span className={`text-[10px] tracking-tight ${current ? 'font-bold' : 'font-medium'}`}>
                   {item.label}
                 </span>
-              </button>
+              </a>
             );
           })}
         </div>

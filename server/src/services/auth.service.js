@@ -246,6 +246,55 @@ export function createAuthService({
     },
 
     /**
+     * Changes the signed-in user's password. The current password must be correct. Every
+     * existing session is signed out (token version bump); the caller gets a fresh token so the
+     * device that made the change stays signed in.
+     *
+     * @param {string|number} userId
+     * @param {object} params
+     * @param {string} params.currentPassword
+     * @param {string} params.newPassword
+     * @returns {Promise<{ token: string }>}
+     */
+    async changePassword(userId, params) {
+      if (!userId) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'User ID is required');
+      }
+      if (!params || typeof params !== 'object') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Password data must be an object');
+      }
+
+      const currentPassword = validateLoginPassword(params.currentPassword);
+      const newPassword = validatePassword(params.newPassword);
+
+      const record = await userRepo.findPasswordHashById(userId);
+      if (!record) {
+        throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+      }
+
+      const matches = await passwordService.verifyPassword(currentPassword, record.passwordHash);
+      if (!matches) {
+        // Not 401: the session itself is valid, and a 401 would sign the user out in the client.
+        throw new AppError(400, 'INVALID_CURRENT_PASSWORD', 'Current password is incorrect');
+      }
+      if (newPassword === currentPassword) {
+        throw new AppError(400, 'PASSWORD_UNCHANGED', 'New password must be different from the current one');
+      }
+
+      const newHash = await passwordService.hashPassword(newPassword, bcryptCost);
+      const updated = await userRepo.updatePasswordHash(userId, newHash);
+      if (!updated) {
+        throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+      }
+
+      const token = tokenService.signToken(
+        { userId: updated.id, tokenVersion: updated.tokenVersion },
+        config.jwtSecret
+      );
+      return { token };
+    },
+
+    /**
      * Logs out a user by incrementing their token version (invalidating existing tokens).
      *
      * @param {string|number} userId

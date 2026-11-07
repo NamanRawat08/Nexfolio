@@ -51,6 +51,7 @@ export function createAuthRouter({
 
   router.post('/register', limiter, controller.register);
   router.post('/login', limiter, controller.login);
+  router.post('/change-password', authMiddleware, limiter, controller.changePassword);
   router.post('/logout', authMiddleware, controller.logout);
   router.get('/me', authMiddleware, controller.me);
 

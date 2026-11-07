@@ -7,6 +7,7 @@ import { createOrderRouter } from './order.routes.js';
 import { createHoldingRouter } from './holding.routes.js';
 import { createPortfolioRouter } from './portfolio.routes.js';
 import { createWatchlistRouter } from './watchlist.routes.js';
+import { createNotificationRouter } from './notification.routes.js';
 import { createAuthController } from '../controllers/auth.controller.js';
 import { createAuthMiddleware } from '../middleware/auth.middleware.js';
 import { createAuthService } from '../services/auth.service.js';
@@ -21,6 +22,8 @@ import { createHoldingController } from '../controllers/holding.controller.js';
 import { createPortfolioController } from '../controllers/portfolio.controller.js';
 import { createWatchlistController } from '../controllers/watchlist.controller.js';
 import { createWatchlistRepository } from '../repositories/watchlist.repository.js';
+import { createNotificationController } from '../controllers/notification.controller.js';
+import { createNotificationRepository } from '../repositories/notification.repository.js';
 import { createOrderRepository } from '../repositories/order.repository.js';
 import { createHoldingRepository } from '../repositories/holding.repository.js';
 import { createOrderService } from '../services/order.service.js';
@@ -130,6 +133,14 @@ export function createApiRouter({
   apiRouter.use(
     '/watchlist',
     createWatchlistRouter({ controller: watchlistController, authMiddleware })
+  );
+
+  const notificationController = createNotificationController({
+    notificationRepo: createNotificationRepository(query),
+  });
+  apiRouter.use(
+    '/notifications',
+    createNotificationRouter({ controller: notificationController, authMiddleware })
   );
 
   return apiRouter;

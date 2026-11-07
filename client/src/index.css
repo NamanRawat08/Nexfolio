@@ -33,6 +33,30 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/*
+ * Light theme — overrides the same tokens when <html data-theme="light"> (see ThemeContext).
+ * WCAG AA contrast verified (all >= 4.5:1 for text):
+ *   fg/surface=18.03  muted/surface-2=5.42  accent/surface-2=5.04
+ *   accent-fg/accent=5.91  gain/surface-2=4.68  loss/surface-2=5.61
+ */
+:root[data-theme="light"] {
+  --color-bg: #faf6f0;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3ece2;
+  --color-line: #e2d6c6;
+  --color-fg: #1c1511;
+  --color-muted: #6b5d50;
+  --color-accent: #8c590f;
+  --color-accent-hover: #734709;
+  --color-accent-fg: #ffffff;
+  --color-gain: #047857;
+  --color-loss: #b42318;
+}
+
+/* Native controls (form fields, scrollbars) follow the theme */
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
 /* Base styles */
 html {
   background-color: var(--color-bg);

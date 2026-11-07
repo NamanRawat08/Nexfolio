@@ -6,9 +6,11 @@ export const tradingApi = {
   history: (range, signal) => request(`/portfolio/history?range=${range}`, { signal }),
   performance: (signal) => request('/portfolio/performance', { signal }),
   holdings: (signal) => request('/holdings', { signal }),
-  orders: (limit, signal, status) =>
-    request(`/orders?limit=${limit}${status ? `&status=${status}` : ''}`, { signal }),
+  orders: (limit, signal, status, offset = 0) =>
+    request(`/orders?limit=${limit}&offset=${offset}${status ? `&status=${status}` : ''}`, { signal }),
   instruments: (signal) => request('/instruments?limit=100', { signal }),
+  notifications: (signal) => request('/notifications?limit=20', { signal }),
+  markNotificationsRead: () => request('/notifications/read-all', { method: 'POST' }),
   watchlist: (signal) => request('/watchlist', { signal }),
   addToWatchlist: (symbol) => request(`/watchlist/${encodeURIComponent(symbol)}`, { method: 'PUT' }),
   removeFromWatchlist: (symbol) =>

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  Bell,
-  Sun,
   ShieldAlert,
   LogOut,
 } from 'lucide-react';
@@ -11,14 +9,11 @@ import { Avatar } from '../components/ui/Avatar.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
-import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
-import { WalletCards } from '../features/dashboard/WalletCards.jsx';
-import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { InstrumentSearch } from '../features/trading/InstrumentSearch.jsx';
-import { OpenOrdersCard } from '../features/dashboard/OpenOrdersCard.jsx';
-import { WatchlistCard } from '../features/dashboard/WatchlistCard.jsx';
-import { HoldingsCard } from '../features/dashboard/HoldingsCard.jsx';
-import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
+import { NotificationBell } from '../features/notifications/NotificationBell.jsx';
+import { ThemeToggle } from '../features/settings/ThemeToggle.jsx';
+import { useHashRoute } from '../hooks/useHashRoute.js';
+import { PAGES } from '../pages/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getInitials } from '../utils/user.js';
 import { NAV_ITEMS } from '../config/navItems.js';
@@ -37,6 +32,8 @@ function getInitialExpanded() {
 export function DesktopLayout() {
   const [isExpanded, setIsExpanded] = useState(getInitialExpanded);
   const { user, logout } = useAuth();
+  const route = useHashRoute();
+  const Page = PAGES[route];
 
   const toggleSidebar = () => {
     setIsExpanded((prev) => {
@@ -93,38 +90,22 @@ export function DesktopLayout() {
           <nav className="p-2 space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              if (item.active) {
-                return (
-                  <a
-                    key={item.id}
-                    href="#dashboard"
-                    aria-current="page"
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors bg-accent/15 text-accent border border-accent/20 ${
-                      !isExpanded && 'justify-center'
-                    }`}
-                    title={item.label}
-                  >
-                    <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-                    {isExpanded && <span className="truncate">{item.label}</span>}
-                  </a>
-                );
-              }
-
-              // Non-active items are visibly disabled placeholders
+              const current = item.id === route;
               return (
-                <button
+                <a
                   key={item.id}
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="Coming soon"
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted/60 hover:text-muted cursor-not-allowed transition-colors ${
-                    !isExpanded && 'justify-center'
-                  }`}
+                  href={`#${item.id}`}
+                  aria-current={current ? 'page' : undefined}
+                  title={item.label}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                    current
+                      ? 'font-semibold bg-accent/15 text-accent border border-accent/20'
+                      : 'font-medium text-muted hover:text-fg hover:bg-surface-2 border border-transparent'
+                  } ${!isExpanded && 'justify-center'}`}
                 >
                   <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
                   {isExpanded && <span className="truncate">{item.label}</span>}
-                </button>
+                </a>
               );
             })}
           </nav>
@@ -186,31 +167,9 @@ export function DesktopLayout() {
               <span>Simulation</span>
             </div>
 
-            {/* Notification Button (Placeholder) */}
-            {/* TODO(feature): wire up notification drawer */}
-            <Button
-              variant="outline"
-              size="icon"
-              disabled
-              title="Notifications not available yet"
-              aria-label="Notifications"
-              className="text-muted"
-            >
-              <Bell className="w-4 h-4" aria-hidden="true" />
-            </Button>
+            <NotificationBell />
 
-            {/* Theme Toggle (Placeholder) */}
-            {/* TODO(feature): light theme support */}
-            <Button
-              variant="outline"
-              size="icon"
-              disabled
-              title="Light theme not available yet"
-              aria-label="Toggle theme"
-              className="text-muted"
-            >
-              <Sun className="w-4 h-4" aria-hidden="true" />
-            </Button>
+            <ThemeToggle />
 
             {/* User Profile Card */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-line">
@@ -238,38 +197,7 @@ export function DesktopLayout() {
 
         {/* 12-Column Grid Main Content */}
         <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
-          {/* Row 1: Portfolio Chart (8 cols) + Wallet Cards (4 cols) */}
-          <div className="grid grid-cols-12 gap-6 items-stretch">
-            <div className="col-span-8 flex flex-col">
-              <PortfolioChart compact={false} />
-            </div>
-            <div className="col-span-4 flex flex-col">
-              <WalletCards compact={false} />
-            </div>
-          </div>
-
-          {/* Row 2: Monthly Performance (7 cols) + Recent Orders (5 cols) */}
-          <div className="grid grid-cols-12 gap-6 items-stretch">
-            <div className="col-span-7 flex flex-col">
-              <MonthlyPerformanceChart compact={false} />
-            </div>
-            <div className="col-span-5 flex flex-col">
-              <RecentOrders />
-            </div>
-          </div>
-
-          {/* Row 3: Holdings (7 cols) + Watchlist (5 cols) */}
-          <div className="grid grid-cols-12 gap-6 items-stretch">
-            <div className="col-span-7 flex flex-col">
-              <HoldingsCard />
-            </div>
-            <div className="col-span-5 flex flex-col">
-              <WatchlistCard />
-            </div>
-          </div>
-
-          {/* Row 4: Open limit orders */}
-          <OpenOrdersCard />
+          <Page compact={false} />
         </main>
       </div>
     </div>
