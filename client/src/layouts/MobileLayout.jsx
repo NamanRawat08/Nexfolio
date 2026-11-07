@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, ShieldAlert } from 'lucide-react';
+import { Search, Bell, ShieldAlert, LogOut } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { ApiStatus } from '../features/dashboard/ApiStatus.jsx';
@@ -7,9 +7,12 @@ import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { getInitials } from '../utils/user.js';
 import { NAV_ITEMS } from '../config/navItems.js';
 
 export function MobileLayout() {
+  const { user, logout } = useAuth();
   return (
     <div className="min-h-[100dvh] bg-bg text-fg flex flex-col overflow-x-hidden">
       {/* Sticky Compact Top Header */}
@@ -57,8 +60,22 @@ export function MobileLayout() {
 
           {/* User Profile Avatar */}
           <div className="pl-1">
-            <Avatar initials="DU" size="sm" ariaLabel="Demo User avatar" />
+            <Avatar
+              initials={getInitials(user.username)}
+              size="sm"
+              ariaLabel={`${user.username} avatar`}
+            />
           </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Sign out"
+            title="Sign out"
+            className="w-11 h-11 flex items-center justify-center rounded-lg text-muted hover:text-fg cursor-pointer"
+          >
+            <LogOut className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
       </header>
 

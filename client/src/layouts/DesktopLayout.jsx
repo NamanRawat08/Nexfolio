@@ -6,6 +6,7 @@ import {
   Bell,
   Sun,
   ShieldAlert,
+  LogOut,
 } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
@@ -15,6 +16,8 @@ import { PortfolioChart } from '../features/dashboard/PortfolioChart.jsx';
 import { WalletCards } from '../features/dashboard/WalletCards.jsx';
 import { MonthlyPerformanceChart } from '../features/dashboard/MonthlyPerformanceChart.jsx';
 import { RecentOrders } from '../features/dashboard/RecentOrders.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { getInitials } from '../utils/user.js';
 import { NAV_ITEMS } from '../config/navItems.js';
 
 const STORAGE_KEY = 'nexfolio_sidebar_expanded';
@@ -30,6 +33,7 @@ function getInitialExpanded() {
 
 export function DesktopLayout() {
   const [isExpanded, setIsExpanded] = useState(getInitialExpanded);
+  const { user, logout } = useAuth();
 
   const toggleSidebar = () => {
     setIsExpanded((prev) => {
@@ -222,11 +226,24 @@ export function DesktopLayout() {
 
             {/* User Profile Card */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-line">
-              <Avatar initials="DU" size="md" ariaLabel="Demo User profile" />
+              <Avatar
+                initials={getInitials(user.username)}
+                size="md"
+                ariaLabel={`${user.username} profile`}
+              />
               <div className="text-left block leading-tight">
-                <span className="text-xs font-bold text-fg block">Demo User</span>
+                <span className="text-xs font-bold text-fg block">{user.username}</span>
                 <span className="text-[11px] text-muted block">Paper Trader</span>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={logout}
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+              </Button>
             </div>
           </div>
         </header>
