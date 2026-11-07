@@ -43,11 +43,13 @@ export async function listByUser(userId, query = defaultQuery) {
     `SELECT i.symbol, i.name, i.sector,
             h.quantity::text AS quantity,
             h.total_cost_paise::text AS total_cost_paise,
-            (lp.close_price * 100)::bigint::text AS last_price_paise
+            (lp.close_price * 100)::bigint::text AS last_price_paise,
+            (lp.prev_close_price * 100)::bigint::text AS prev_close_paise
      FROM holdings h
      JOIN instruments i ON i.id = h.instrument_id
      LEFT JOIN LATERAL (
-       SELECT p.close_price
+       SELECT p.close_price,
+              LEAD(p.close_price) OVER (ORDER BY p.trade_date DESC) AS prev_close_price
        FROM price_history p
        WHERE p.instrument_id = h.instrument_id
        ORDER BY p.trade_date DESC
@@ -64,6 +66,7 @@ export async function listByUser(userId, query = defaultQuery) {
     quantity: row.quantity,
     totalCostPaise: row.total_cost_paise,
     lastPricePaise: row.last_price_paise,
+    prevClosePaise: row.prev_close_paise,
   }));
 }
 

@@ -105,16 +105,19 @@ All portfolio figures and time ranges are derived from a single deterministic se
 - Monthly performance returns (12 buckets from `2025-11` to `2026-10`) are derived from month-end valuation delta in the master series.
 - All financial calculations are done in integer paise arithmetic to avoid floating-point inaccuracies.
 
+### Live Dashboard Data
+Once signed in, the dashboard loads `GET /api/portfolio/summary`, `/api/holdings` and `/api/orders` through `PortfolioProvider`/`usePortfolio` (`client/src/context/PortfolioContext.jsx`) and refreshes them after each trade. The wallet cards, the new Holdings card and Recent Orders show real data. **Buy** and **Sell** open a modal (`features/trading/TradeDialog.jsx`) that places a simulated market order; the total shown in the dialog is an estimate, and the server fills at the latest close. The Simulated Portfolio Value chart and Monthly Performance chart still use sample data (`mockDashboardData.js`) until the server can compute portfolio history.
+
 ### Authentication in the Client
 Anonymous visitors see a sign-in / create-account screen; the dashboard renders only after `GET /api/auth/me` succeeds. Registering signs the user in straight away (the server's register route does not start a session, so the client calls login next). The header shows the signed-in username with initials and a sign-out button. The session lives in the HTTP-only cookie; the client never handles the token. The dashboard data itself is still sample data.
 
 ### Visual Placeholders & Disabled Controls
 The following controls are intentional visual placeholders awaiting future backend and engine integration:
 1. **Sidebar / Bottom Navigation Tabs**: `Portfolio`, `Orders`, `Watchlist`, `Settings` (styled with `aria-disabled="true"` and inactive indicators).
-2. **Search Inputs**: Desktop search input and mobile search button (both `disabled`).
+2. **Search Inputs**: Desktop search input and mobile search button (both `disabled`). Instruments are picked from a list inside the Buy/Sell dialog instead.
 3. **Notifications**: Bell notification button in header (`disabled`).
 4. **Theme Toggle**: Light theme toggle button in desktop header (`disabled`).
-5. **Quick Actions**: "Buy" and "Sell" buttons in wallet cards (`disabled` with simulation-only tooltips).
+5. **Quick Actions**: now live. "Buy" and "Sell" open the trade dialog (disabled only while portfolio data is loading).
 
 ## How to Run in Development
 
@@ -203,6 +206,7 @@ cd server && npm run seed
 | GET | `/api/instruments/:symbol` | Single instrument (case-insensitive symbol). Requires auth. Returns `200 { instrument }`, `400 INVALID_SYMBOL`, or `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/instruments/:symbol/history` | Daily close prices. Requires auth. Query: `range` = `1M`, `3M`, `6M` or `1Y` (default `1Y`). Returns `200 { symbol, range, history: [{ date, close }] }`, or `400 INVALID_RANGE` / `404 INSTRUMENT_NOT_FOUND`. |
 | GET | `/api/wallet` | Signed-in user's simulated cash. Requires auth. Returns `200 { wallet: { cashPaise, cash, currency } }` (`cashPaise` is an integer string, `cash` is rupees with 2 decimals, currency `INR`). New users start with ₹10,00,000. |
+| GET | `/api/portfolio/summary` | Cash, invested value (latest close), cost basis, total value, unrealized P&L and day P&L (latest close vs the one before). Requires auth. Amounts in paise and rupees; `dayPnlRatio` is a decimal ratio for display. Returns `200 { summary }`. |
 | POST | `/api/orders` | Place a simulated **market** order that fills immediately at the instrument's latest close. Requires auth. Body: `{ symbol, side: "BUY"\|"SELL", quantity }` (`quantity` a whole number, 1–1,000,000). Returns `201 { order, wallet }`. Errors: `400 VALIDATION_ERROR`, `404 INSTRUMENT_NOT_FOUND`, `409 NO_PRICE_AVAILABLE`, `422 INSUFFICIENT_FUNDS`, `422 INSUFFICIENT_HOLDINGS`. |
 | GET | `/api/orders` | The signed-in user's orders, newest first. Requires auth. Query: `limit` (1–100, default 50), `offset`. Returns `200 { orders }` with amounts in paise and rupees; `realizedPnl*` is set on sells only. |
 | GET | `/api/holdings` | Current positions with quantity, average cost, last price, value and unrealized P&L. Requires auth. Returns `200 { holdings }`. |
