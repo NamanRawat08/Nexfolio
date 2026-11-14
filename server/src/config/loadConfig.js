@@ -10,7 +10,10 @@
  *   databaseUrl: string,
  *   jwtSecret: string,
  *   jwtExpiresInSeconds: number,
- *   bcryptCost: number
+ *   bcryptCost: number,
+ *   redisUrl: string | undefined,
+ *   rateLimitPrefix: string,
+ *   trustProxy: number | false
  * }>}
  */
 export function loadConfig(env = process.env) {
@@ -68,6 +71,36 @@ export function loadConfig(env = process.env) {
     bcryptCost = rawCost;
   }
 
+  // Validate REDIS_URL (optional). When set, rate limits are counted in Redis, shared by every
+  // server instance. When unset, they are counted in memory, per process.
+  let redisUrl;
+  if (env.REDIS_URL !== undefined && env.REDIS_URL !== '') {
+    if (!env.REDIS_URL.startsWith('redis://') && !env.REDIS_URL.startsWith('rediss://')) {
+      throw new Error('REDIS_URL must start with redis:// or rediss://');
+    }
+    redisUrl = env.REDIS_URL;
+  }
+
+  // Validate RATE_LIMIT_PREFIX (key prefix in Redis; instances with the same prefix share limits)
+  let rateLimitPrefix = 'nexfolio:rl';
+  if (env.RATE_LIMIT_PREFIX !== undefined && env.RATE_LIMIT_PREFIX !== '') {
+    if (!/^[A-Za-z0-9:_-]{1,40}$/.test(env.RATE_LIMIT_PREFIX)) {
+      throw new Error('RATE_LIMIT_PREFIX must be 1 to 40 characters: letters, digits, colon, underscore or hyphen');
+    }
+    rateLimitPrefix = env.RATE_LIMIT_PREFIX;
+  }
+
+  // Validate TRUST_PROXY (optional): how many reverse proxies sit in front of this server.
+  // Unset or 0 means none, so the connection's own address is used. Only a hop count is allowed:
+  // "true" would trust every X-Forwarded-For header, which any client can fake.
+  let trustProxy = false;
+  if (env.TRUST_PROXY !== undefined && env.TRUST_PROXY !== '') {
+    if (!/^\d+$/.test(env.TRUST_PROXY) || Number(env.TRUST_PROXY) > 10) {
+      throw new Error('TRUST_PROXY must be a whole number of proxies between 0 and 10');
+    }
+    trustProxy = Number(env.TRUST_PROXY) === 0 ? false : Number(env.TRUST_PROXY);
+  }
+
   return Object.freeze({
     nodeEnv,
     port,
@@ -76,6 +109,9 @@ export function loadConfig(env = process.env) {
     jwtSecret,
     jwtExpiresInSeconds,
     bcryptCost,
+    redisUrl,
+    rateLimitPrefix,
+    trustProxy,
   });
 }
 

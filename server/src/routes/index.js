@@ -3,6 +3,13 @@ import healthRoutes from './health.routes.js';
 import { createAuthRouter } from './auth.routes.js';
 import { createInstrumentRouter } from './instrument.routes.js';
 import { createWalletRouter } from './wallet.routes.js';
+import { createRateLimiters } from '../rateLimit/createRateLimiters.js';
+import {
+  createRateLimitMiddleware,
+  keyByBodyField,
+  keyByIp,
+  keyByUser,
+} from '../middleware/rateLimit.middleware.js';
 import { createOrderRouter } from './order.routes.js';
 import { createHoldingRouter } from './holding.routes.js';
 import { createPortfolioRouter } from './portfolio.routes.js';
@@ -39,17 +46,21 @@ import { getConfig } from '../config/index.js';
  * @param {object} [options={}]
  * @param {object} [options.config]
  * @param {Function} [options.query]
- * @param {object} [options.limiterOptions]
+ * @param {object} [options.rateLimiters] - Limiters by policy name (see rateLimit/createRateLimiters.js); built from the config by default
  * @returns {import('express').Router}
  */
 export function createApiRouter({
   config,
   query = poolQuery,
   withTransaction = poolWithTransaction,
-  limiterOptions,
+  rateLimiters,
 } = {}) {
   const currentConfig = config ?? getConfig();
   const apiRouter = Router();
+
+  // Rate limiting: Redis-backed when REDIS_URL is set (with an in-memory fallback), else in memory.
+  const limiters = rateLimiters ?? createRateLimiters({ config: currentConfig });
+  const limit = (name, keyFn) => createRateLimitMiddleware({ limiter: limiters[name], keyFn });
 
   // Health check routes
   apiRouter.use(healthRoutes);
@@ -74,7 +85,11 @@ export function createApiRouter({
   const authRouter = createAuthRouter({
     controller,
     authMiddleware,
-    limiterOptions,
+    rateLimits: {
+      register: [limit('register', keyByIp)],
+      login: [limit('loginIp', keyByIp), limit('loginAccount', keyByBodyField('identifier'))],
+      changePassword: [limit('changePassword', keyByUser)],
+    },
   });
 
   apiRouter.use('/auth', authRouter);
@@ -106,7 +121,14 @@ export function createApiRouter({
     orderService,
     orderRepo: createOrderRepository(query),
   });
-  apiRouter.use('/orders', createOrderRouter({ controller: orderController, authMiddleware }));
+  apiRouter.use(
+    '/orders',
+    createOrderRouter({
+      controller: orderController,
+      authMiddleware,
+      placeRateLimit: [limit('orders', keyByUser)],
+    })
+  );
 
   const holdingController = createHoldingController({ holdingRepo: createHoldingRepository(query) });
   apiRouter.use('/holdings', createHoldingRouter({ controller: holdingController, authMiddleware }));

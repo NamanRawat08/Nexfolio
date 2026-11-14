@@ -1,5 +1,6 @@
 import { loadConfig } from './config/index.js';
 import { closePool } from './db/pool.js';
+import { closeRedis } from './rateLimit/redisClient.js';
 
 let config;
 try {
@@ -13,7 +14,7 @@ const { createApp } = await import('./app.js');
 const app = createApp();
 
 // Registry of async cleanup functions run during graceful shutdown
-export const cleanupTasks = [closePool];
+export const cleanupTasks = [closePool, closeRedis];
 
 let isShuttingDown = false;
 
