@@ -19,6 +19,10 @@ export function createApp(customConfig) {
   const config = customConfig ?? getConfig();
   const app = express();
 
+  // How many reverse proxies sit in front of the server (TRUST_PROXY). Needed so req.ip, which
+  // rate limiting uses, is the real client and not the proxy.
+  app.set('trust proxy', config.trustProxy ?? false);
+
   // Security headers
   app.use(helmet());
 

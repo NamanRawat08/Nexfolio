@@ -71,7 +71,7 @@ nexfolio/
       utils/              # Utility helpers directory placeholder (.gitkeep)
       app.js              # Express app setup and middleware configuration
       server.js           # Server listen entrypoint
-    .env.example          # Environment variable template (PORT, CLIENT_ORIGIN, DATABASE_URL)
+    .env.example          # Environment variable template (PORT, CLIENT_ORIGIN, DATABASE_URL, optional REDIS_URL, RATE_LIMIT_PREFIX, TRUST_PROXY)
     package.json          # Server dependencies and npm scripts
   .gitignore              # Global git ignore configuration
   package.json            # Root workspace scripts (npm run dev, install:all, etc.)
@@ -166,7 +166,7 @@ Or run them individually in separate terminals:
   ```
 
 ### 4. Run Tests
-To run backend tests using Node.js built-in test runner (tests do not require a running database or `server/.env`):
+To run backend tests using Node.js built-in test runner (tests do not require a running database or `server/.env`). The few Redis integration tests use `REDIS_URL` (default `redis://localhost:6379`) and skip themselves when Redis is not running:
 ```bash
 cd server && npm test
 ```
@@ -224,9 +224,9 @@ cd server && npm run market:advance
 |--------|------|-------------|
 | GET | `/api/health` | Express server liveness check. Returns `{ status, service, timestamp }`. |
 | GET | `/api/health/db` | Database connectivity check. Returns `{ status, database, timestamp }` on success, or `503 DB_UNAVAILABLE` on failure or timeout (2 s). |
-| POST | `/api/auth/register` | User registration. Validates email, username, and password (8–72 bytes). Returns `201 { user: { id, email, username, createdAt } }`. Does not set cookie. Rate limited (10 req / 15 min). |
-| POST | `/api/auth/login` | User authentication via email or username. Returns `200 { user: { id, email, username } }`. Sets `nexfolio_token` HTTP-only cookie. Token never appears in body. Rate limited (10 req / 15 min). |
-| POST | `/api/auth/change-password` | Change the signed-in user's password. Requires auth. Body: `{ currentPassword, newPassword }` (new password 8–72 bytes). Signs out every other session (token version bump) and sets a fresh `nexfolio_token` cookie for this one; the token is never in the body. Rate limited together with login and register. Returns `200 { success: true }`; `400 INVALID_CURRENT_PASSWORD` (400, not 401, so the client is not signed out), `400 PASSWORD_UNCHANGED`, `400 VALIDATION_ERROR`. |
+| POST | `/api/auth/register` | User registration. Validates email, username, and password (8–72 bytes). Returns `201 { user: { id, email, username, createdAt } }`. Does not set cookie. Rate limited: 10 per 15 minutes per IP (see Rate Limiting). |
+| POST | `/api/auth/login` | User authentication via email or username. Returns `200 { user: { id, email, username } }`. Sets `nexfolio_token` HTTP-only cookie. Token never appears in body. Rate limited: 30 per 15 minutes per IP and 10 per 15 minutes per account name (see Rate Limiting). |
+| POST | `/api/auth/change-password` | Change the signed-in user's password. Requires auth. Body: `{ currentPassword, newPassword }` (new password 8–72 bytes). Signs out every other session (token version bump) and sets a fresh `nexfolio_token` cookie for this one; the token is never in the body. Rate limited: 5 per 15 minutes per signed-in user. Returns `200 { success: true }`; `400 INVALID_CURRENT_PASSWORD` (400, not 401, so the client is not signed out), `400 PASSWORD_UNCHANGED`, `400 VALIDATION_ERROR`. |
 | POST | `/api/auth/logout` | User logout. Requires auth. Increments token version in DB to invalidate existing sessions and clears `nexfolio_token` cookie. Returns `204` No Content. |
 | GET | `/api/auth/me` | Current user profile. Requires auth via `nexfolio_token` cookie. Returns `200 { user: { id, email, username, createdAt } }`. |
 | GET | `/api/instruments` | List instruments with latest and previous close (prices as decimal strings). Requires auth. Query: `search` (max 50 chars, matches symbol or name), `limit` (1–100, default 50), `offset` (default 0). Returns `200 { instruments: [...] }`. Invalid query returns `400 INVALID_QUERY`. |
@@ -266,13 +266,31 @@ cd server && npm run market:advance
 - **Session Revocation**: Logout increments `token_version` on the user record; existing JWTs carrying stale `token_version` are rejected immediately on subsequent requests.
 - **Timing Equalization**: On login with an unknown email or username, dummy bcrypt verification is performed to equalize execution duration and eliminate timing attack side channels.
 
+### Rate Limiting
+Sensitive and expensive actions are limited so one client cannot guess passwords or flood the API. Exceeding a limit returns `429 { error: { code: "RATE_LIMITED", ... } }` with a `Retry-After` header (seconds); every limited response also carries `RateLimit-Limit` and `RateLimit-Remaining`.
+
+| Action | Key | Limit |
+|---|---|---|
+| Register | client IP | 10 per 15 minutes (sliding window) |
+| Login | client IP | 30 per 15 minutes (sliding window) |
+| Login | account name (hashed, case-insensitive) | 10 per 15 minutes (sliding window) |
+| Change password | signed-in user | 5 per 15 minutes (sliding window) |
+| Place order (`POST /api/orders`) | signed-in user | burst of 20, then 5 per second (token bucket) |
+
+- **Two algorithms, on purpose.** A *sliding window* never allows more than N requests in any window, which suits sign-in. A *token bucket* allows a short burst and then a steady rate, which suits placing orders. Both are in `server/src/rateLimit/`, ported from the `redis-ratelimit-lab` project.
+- **Redis (optional).** With `REDIS_URL` set, each limiter is a Lua script that runs inside Redis (`server/src/rateLimit/lua/`). Redis runs a script start to finish, so read, check and write are atomic: 100 simultaneous requests against a limit of 10 allow exactly 10, even across several server instances. Counters survive restarts and use Redis's own clock. Keys are `<RATE_LIMIT_PREFIX>:<policy>:sw|tb:<key>` and expire by themselves; account names are SHA-256 hashed so no email address is stored in Redis.
+- **Without Redis**, the same limits are counted in memory per process (idle keys are pruned).
+- **If Redis fails**, each limiter falls back to its in-memory twin, so protection degrades (per instance, not shared) instead of disappearing and the API stays up. A small circuit breaker skips Redis for 5 seconds after a failure so a dead Redis does not slow every request; one log line is written per outage, and again when Redis returns.
+- **Behind a proxy**, set `TRUST_PROXY` to the number of proxies in front of the server (1 to 10), otherwise every user looks like the proxy's IP and shares one limit. A hop count is required on purpose: `true` would trust forged `X-Forwarded-For` headers. IPv6 clients are limited by their `/64` network, since one household owns 2^64 addresses.
+- **Run Redis locally:** `brew install redis && brew services start redis`, then add `REDIS_URL=redis://localhost:6379` to `server/.env`.
+
 ### Known Limitations
 
 - **No CSRF Tokens**: Relies on `SameSite: 'lax'` cookie policy.
 - **Enumeration**: Registration returns `409 EMAIL_TAKEN` or `409 USERNAME_TAKEN`, revealing whether an email or username exists.
 - **No Email Verification**: Accounts are active immediately without email confirmation.
 - **No Password Reset**: Password recovery workflows are not implemented.
-- **In-Memory Rate Limiting**: Rate limiting uses in-memory tracking per IP address, which resets on server restarts and is not shared across horizontal server instances.
+- **Rate Limiting Needs Redis to Be Shared**: Without `REDIS_URL`, limits are counted in memory per process (reset on restart, not shared between instances). Set `REDIS_URL` to share them (see Rate Limiting). If Redis later becomes unreachable the server keeps limiting in memory, so the limit is then per instance until Redis returns.
 - **Email Lowercased**: Emails are normalized and stored lowercased for case-insensitive lookup.
 - **JWT Secret Validation**: `JWT_SECRET` is only validated for minimum character length (32 chars) at startup.
 - **Frontend Auth UI**: Backend authentication endpoints are fully implemented; frontend login and registration UI forms are not yet built (the dashboard runs in simulated demo mode).
@@ -280,5 +298,5 @@ cd server && npm run market:advance
 ## Status & Scope Boundaries
 
 Current status: a working paper-trading simulator. Users register, sign in, receive ₹10,00,000 of simulated cash, buy and sell seeded Indian equities at the latest close, and see live balances, holdings, orders and portfolio history on the dashboard.
-- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders with limit support, watchlist, notifications), HTTP-only cookie authentication with in-memory rate limiting, instrument and price-history endpoints, atomic market and limit orders with a matching job, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, change password, hash-routed pages (Dashboard, Portfolio, Orders, Watchlist, Settings), a light and dark theme, in-app notifications, dual desktop/mobile layouts, a Buy/Sell dialog (market or limit), an Open Orders card, instrument search, a watchlist card and Recharts visualizations driven by live data.
+- **Implemented**: Express 5 server with health checks, PostgreSQL pooling and migrations (users, instruments, price history, wallets, holdings, orders with limit support, watchlist, notifications), HTTP-only cookie authentication with per-route rate limiting (sliding window and token bucket; shared through Redis when configured, with an in-memory fallback), instrument and price-history endpoints, atomic market and limit orders with a matching job, holdings, portfolio summary/history/performance endpoints, a per-user watchlist, a React client with sign-in/registration, change password, hash-routed pages (Dashboard, Portfolio, Orders, Watchlist, Settings), a light and dark theme, in-app notifications, dual desktop/mobile layouts, a Buy/Sell dialog (market or limit), an Open Orders card, instrument search, a watchlist card and Recharts visualizations driven by live data.
 - **Not Implemented**: Real money trading, brokerage integration, exchange APIs, stop orders, order expiry, partial fills, short selling and margin, email or push notifications (notifications appear in the app only), an automatic daily price job (run `npm run market:advance` yourself or from cron), and client component and end-to-end tests (only the auth message helpers have unit tests, run with `cd client && npm test`).
